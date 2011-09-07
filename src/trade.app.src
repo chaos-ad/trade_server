@@ -1,0 +1,15 @@
+{application, trade,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib,
+                  inets,
+                  crypto,
+                  emysql
+                 ]},
+  {mod, { trade_app, []}},
+  {env, []}
+ ]}.
