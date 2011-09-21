@@ -2,14 +2,16 @@
 -behavior(gen_server).
 -compile(export_all).
 
--include("trade_timeframes.hrl").
+-include("periods.hrl").
 -include_lib("emysql/include/emysql.hrl").
 
 -export([start_link/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, code_change/3, terminate/2]).
 
--define(DUPLICATE_ENTRY, 1062).
--define(TABLE_ALREADY_EXISTS, 1050).
+-define(DUPLICATE_ENTRY,        1062).
+-define(UNKNOWN_TABLE,          1051).
+-define(TABLE_ALREADY_EXISTS,   1050).
+-define(TABLE_DOES_NOT_EXISTS,  1146).
 
 -define(SERVER, {global, ?MODULE}).
 
@@ -18,20 +20,27 @@
 start_link() ->
     gen_server:start_link({global, ?MODULE}, ?MODULE, [], []).
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+add_symbol({ID, Code, Name, Market}) ->
+    gen_server:call(?SERVER, {add_symbol, {ID, Code, Name, Market}}).
+
+get_symbol(Arg) ->
+    gen_server:call(?SERVER, {get_symbol, Arg}).
+
+find_symbol(Arg) ->
+    gen_server:call(?SERVER, {find_symbol, Arg}).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+import_history(Symbol, Period, Ticks) ->
+    gen_server:call(?SERVER, {import_history, Symbol, Period, Ticks}, 60000).
+
 get_history(Symbol, Period, Timestamp) ->
-    gen_server:call(?SERVER, {get_history, Symbol, Period, Timestamp}, infinity).
+    gen_server:call(?SERVER, {get_history, Symbol, Period, Timestamp}, 60000).
 
 get_history(Symbol, Period, From, To) ->
-    gen_server:call(?SERVER, {get_history, Symbol, Period, From, To}, infinity).
-
-put_history(TickInfo) ->
-    gen_server:call(?SERVER, {put_history, TickInfo}, infinity).
-
-get_finam_symbol_code(Symbol) ->
-    gen_server:call(?SERVER, {get_finam_symbol_code, Symbol}, infinity).
-
-put_finam_symbol_code(Symbol, Code) ->
-    gen_server:call(?SERVER, {put_finam_symbol_code, Symbol, Code}, infinity).
+    gen_server:call(?SERVER, {get_history, Symbol, Period, From, To}, 60000).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -51,96 +60,41 @@ init([]) ->
     {ok, undefined}.
 
 init_database() ->
-    case file:list_dir("priv/db/") of
-        {ok, Scripts} ->
-            lists:foreach( fun(File) -> execute_script("priv/db/" ++ File) end, Scripts );
-        {error, noent} ->
-            ok
+    QueryBin =
+    <<"CREATE TABLE `symbols` ("
+        "`ID`     INT(10)      UNSIGNED NOT NULL,"
+        "`Code`   VARCHAR(10)           NOT NULL,"
+        "`Name`   VARCHAR(30)           NOT NULL,"
+        "`Market` INT(10)      UNSIGNED NOT NULL,"
+        "PRIMARY KEY (`ID`,`Code`)"
+        ") ENGINE=MyISAM DEFAULT CHARSET=utf8;">>,
+    case execute(QueryBin) of
+        R when is_record(R, ok_packet) -> ok;
+        R when is_record(R, error_packet) ->
+            case R#error_packet.code =:= ?TABLE_ALREADY_EXISTS of
+                true -> ok;
+                false -> throw_error(R)
+            end
     end.
-
-execute_script(File) ->
-    case file:read_file(File) of
-        {ok, Query} ->
-            error_logger:info_msg("executing '~s'...~n", [File]),
-            case execute(Query) of
-                R when is_record(R, ok_packet) -> ok;
-                R when is_record(R, error_packet) ->
-                    case R#error_packet.code =:= ?TABLE_ALREADY_EXISTS of
-                        true -> ok;
-                        false -> throw(make_error(R))
-                    end
-            end;
-        _ -> ok
-    end.
-
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-handle_call({put_finam_symbol_code, Symbol, Code}, _, State) ->
-    Query = "INSERT INTO finam_symbols VALUES (~s, ~B)",
-    QueryBin = iolist_to_binary(io_lib:format(Query, [emysql_util:quote(Symbol), Code])),
-    case execute(QueryBin) of
-        R when is_record(R, ok_packet)    -> {reply, ok, State};
-        R when is_record(R, error_packet) -> {reply, make_error(R), State}
-    end;
+handle_call({add_symbol, SymbolInfo}, _, State) ->
+    {reply, add_symbol_info(SymbolInfo), State};
 
-handle_call({get_finam_symbol_code, Symbol}, _, State) ->
-    Query = "SELECT CODE FROM finam_symbols WHERE Name = ~s",
-    QueryBin = iolist_to_binary(io_lib:format(Query, [emysql_util:quote(Symbol)])),
-    case execute(QueryBin) of
-        R when is_record(R, error_packet)  -> {reply, make_error(R), State};
-        R when is_record(R, result_packet) ->
-            case R#result_packet.rows of
-                [[Code]] -> {reply, Code, State};
-                []       -> {reply, undefined, State}
-            end
-    end;
+handle_call({get_symbol, Arg}, _, State) ->
+   {reply, get_symbol_info(Arg), State};
+
+handle_call({find_symbol, Arg}, _, State) ->
+   {reply, find_symbol_info(Arg), State};
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-handle_call({put_history, TickInfo}, _, State) when is_tuple(TickInfo) ->
-    QueryBin = iolist_to_binary(["INSERT INTO history VALUES ", prepare_insertion(TickInfo)]),
-%     error_logger:info_msg("Query: ~s~n", [QueryBin]),
-    case execute(QueryBin) of
-        R when is_record(R, ok_packet)    -> {reply, ok, State};
-        R when is_record(R, error_packet) -> {reply, make_error(R), State}
-    end;
-
-handle_call({put_history, []}, _, State) -> {reply, ok, State};
-handle_call({put_history, List}, _, State) when is_list(List) ->
-%     error_logger:info_msg("importing ~b bars...~n", [length(List)]),
-    QueryBin = iolist_to_binary(["INSERT INTO history VALUES ", prepare_insertion(List)]),
-%     error_logger:info_msg("Query: ~s~n", [QueryBin]),
-    case execute(QueryBin) of
-        R when is_record(R, ok_packet)    -> {reply, ok, State};
-        R when is_record(R, error_packet) -> {reply, make_error(R), State}
-    end;
-
-handle_call({get_history, Symbol, Period, Time}, _, State) ->
-    Args  = [emysql_util:quote(Symbol), period(Period), emysql_util:quote(timestamp(Time))],
-    Query = "SELECT * FROM history WHERE Symbol = ~s AND Period = ~B AND Timestamp = ~s",
-    QueryBin = iolist_to_binary(io_lib:format(Query, Args)),
-%     error_logger:info_msg("Query: ~p~n", [QueryBin]),
-    case execute(QueryBin) of
-        R when is_record(R, error_packet)  -> {reply, make_error(R), State};
-        R when is_record(R, result_packet) ->
-            case R#result_packet.rows of
-                [Info] -> {reply, parse_tick_info(Info), State};
-                []     -> {reply, undefined, State}
-            end
-    end;
+handle_call({import_history, Symbol, Period, Bars}, _, State) ->
+    {reply, put_bars(Symbol, Period, Bars), State};
 
 handle_call({get_history, Symbol, Period, From, To}, _, State) ->
-    QuotedTo   = emysql_util:quote(timestamp(To)),
-    QuotedFrom = emysql_util:quote(timestamp(From)),
-    Args  = [emysql_util:quote(Symbol), period(Period), QuotedFrom, QuotedTo],
-    Query = "SELECT * FROM history WHERE Symbol = ~s AND Period = ~B AND Timestamp >= ~s AND Timestamp <= ~s",
-    QueryBin = iolist_to_binary(io_lib:format(Query, Args)),
-%     error_logger:info_msg("Query: ~p~n", [QueryBin]),
-    case execute(QueryBin) of
-        R when is_record(R, error_packet)  -> {reply, make_error(R), State};
-        R when is_record(R, result_packet) -> {reply, lists:map(fun parse_tick_info/1, R#result_packet.rows), State}
-    end;
+    {reply, get_bars(Symbol, Period, From, To), State};
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -155,6 +109,77 @@ terminate(Reason, _State) ->
     ok.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+add_symbol_info({ID, Code, Name, Market}) ->
+    Query = "INSERT INTO symbols VALUES (~B, ~s, ~s, ~B)",
+    QueryBin = iolist_to_binary(io_lib:format(Query, [ID, emysql_util:quote(Code), emysql_util:quote(Name), Market])),
+    case execute(QueryBin) of
+        R when is_record(R, ok_packet)    -> ok;
+        R when is_record(R, error_packet) -> throw_error(R)
+    end.
+
+get_symbol_info(Arg) ->
+    case find_symbol_info(Arg) of
+        [Info] -> Info;
+        _      -> exit("symbol not found")
+    end.
+
+find_symbol_info(ID) when is_integer(ID) ->
+    Query = "SELECT * FROM symbols WHERE ID = ~B",
+    QueryBin = iolist_to_binary(io_lib:format(Query, [ID])),
+    case execute(QueryBin) of
+        R when is_record(R, error_packet)  -> throw_error(R);
+        R when is_record(R, result_packet) -> lists:map(fun list_to_tuple/1, R#result_packet.rows)
+    end;
+
+find_symbol_info(Code) when is_list(Code) or is_binary(Code) ->
+    Query = "SELECT * FROM symbols WHERE Code LIKE ~s",
+    QueryBin = iolist_to_binary(io_lib:format(Query, [emysql_util:quote(Code)])),
+    case execute(QueryBin) of
+        R when is_record(R, error_packet)  -> throw_error(R);
+        R when is_record(R, result_packet) -> lists:map(fun list_to_tuple/1, R#result_packet.rows)
+    end.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+put_bars(_, _, []) -> ok;
+put_bars(Symbol, Period, Bars) when is_list(Bars) ->
+
+    TableName = get_tablename(Symbol, Period),
+    ok = create_table(TableName),
+
+    SubQuery = build_import_query(Bars),
+    QueryBin = <<"INSERT INTO ", TableName/binary, " VALUES ", SubQuery/binary>>,
+
+    case execute(QueryBin) of
+        R when is_record(R, ok_packet)    -> ok;
+        R when is_record(R, error_packet) -> throw_error(R)
+    end.
+
+get_bars(Symbol, Period, From, To) when is_tuple(From), is_tuple(To) ->
+
+    TableName = get_tablename(Symbol, Period),
+
+    Query = "SELECT * FROM ~s WHERE Timestamp >= ~B AND Timestamp <= ~B",
+    QueryBin = iolist_to_binary(io_lib:format(Query, [TableName, to_unixtime(From), to_unixtime(To)])),
+
+    error_logger:info_msg("Starting query...~n"),
+    {T1, QRes} = timer:tc( fun() -> execute(QueryBin) end ),
+    case QRes of
+        R when is_record(R, result_packet) ->
+            error_logger:info_msg("Query takes ~B...~n", [T1]),
+            error_logger:info_msg("Parsing bars...~n"),
+            {T2, Result} = timer:tc(fun() -> lists:map(fun parse_bar/1, R#result_packet.rows) end),
+            error_logger:info_msg("Parsing takes ~B...~n", [T2]),
+            Result;
+        R when is_record(R, error_packet)  ->
+            case R#error_packet.code =:= ?TABLE_DOES_NOT_EXISTS of
+                true  -> [];
+                false -> throw_error(R)
+            end
+    end.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Local functions:
 
 execute(Query) ->
@@ -166,33 +191,72 @@ execute(Query) ->
         exit:Err -> {error, Err}
     end.
 
-make_error(R) when is_record(R, error_packet) ->
-    {error, {R#error_packet.code, R#error_packet.msg}}.
+throw_error(R) when is_record(R, error_packet) ->
+    exit({error, {R#error_packet.code, R#error_packet.msg}}).
 
-parse_tick_info([Symbol, Period, {datetime, Time}, Open, High, Low, Close, Volume]) ->
-    {Symbol, Period, Time, Open, High, Low, Close, Volume}.
+parse_bar([Time, Open, High, Low, Close, Volume]) ->
+    {trade_utils:to_datetime(Time), Open, High, Low, Close, Volume}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-prepare_insertion({Symbol, Period, Time, Open, High, Low, Close, Volume}) ->
-    S = emysql_util:quote(Symbol),
-    P = period(Period),
-    T = emysql_util:quote(timestamp(Time)),
-    lists:flatten(io_lib:format("~n\t(~s,~B,~s,~w,~w,~w,~w,~w)", [S, P, T, Open, High, Low, Close, Volume]));
+get_tablename(Symbol, Period) when is_integer(Period) ->
+    {ID, _, _, _} = get_symbol_info(Symbol),
+    iolist_to_binary(io_lib:format("history_~B_~B", [ID, Period])).
 
-prepare_insertion(List) when is_list(List) ->
-    prepare_insertion(List, []).
+table_exists(Name) ->
+    QueryBin = <<"SHOW TABLES LIKE '", Name/binary, "'">>,
+    case execute(QueryBin) of
+        R when is_record(R, error_packet)  -> throw_error(R);
+        R when is_record(R, result_packet) -> length(R#result_packet.rows) > 0
+    end.
 
-prepare_insertion([], Result) -> lists:reverse(Result);
-prepare_insertion([Info], Result) -> lists:reverse([prepare_insertion(Info)|Result]);
-prepare_insertion([Info|Tail], Result) -> prepare_insertion(Tail, [$,, prepare_insertion(Info)|Result]).
+create_table(Name) ->
+    QueryBin =
+    <<"CREATE TABLE `", Name/binary, "` ("
+      "`Timestamp` INTEGER UNSIGNED NOT NULL,"
+      "`Open` DOUBLE NOT NULL,"
+      "`High` DOUBLE NOT NULL,"
+      "`Low` DOUBLE NOT NULL,"
+      "`Close` DOUBLE NOT NULL,"
+      "`Volume` DOUBLE NOT NULL,"
+      "PRIMARY KEY (`Timestamp`)"
+      ") ENGINE=MyISAM DEFAULT CHARSET=utf8;">>,
+    case execute(QueryBin) of
+        R when is_record(R, ok_packet)    -> ok;
+        R when is_record(R, error_packet) ->
+            case R#error_packet.code =:= ?TABLE_ALREADY_EXISTS of
+                true  -> ok;
+                false -> throw_error(R)
+            end
+    end.
 
-timestamp(Timestamp) when is_integer(Timestamp) ->
-    timestamp(trade_utils:to_datetime(Timestamp));
-timestamp({Year, Month, Day}) ->
-    timestamp({{Year, Month, Day}, {0, 0, 0}});
-timestamp({{Year, Month, Day}, {Hour, Min, Sec}}) ->
-    lists:flatten(io_lib:format("~4.10.0B-~2.10.0B-~2.10.0B ~2.10.0B:~2.10.0B:~2.10.0B", [Year, Month, Day, Hour, Min, Sec])).
+drop_table(Name) ->
+    QueryBin = <<"DROP TABLE ", Name/binary>>,
+    case execute(QueryBin) of
+        R when is_record(R, ok_packet)    -> ok;
+        R when is_record(R, error_packet) ->
+            case R#error_packet.code =:= ?UNKNOWN_TABLE of
+                true  -> ok;
+                false -> throw_error(R)
+            end
+    end.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+build_import_query(Ticks) when is_list(Ticks) -> build_import_query(Ticks, []);
+build_import_query({Time, Open, High, Low, Close, Volume}) ->
+    Args = [trade_utils:to_unixtime(Time), Open, High, Low, Close, Volume],
+    io_lib:format("(~B,~w,~w,~w,~w,~w)", Args).
+
+build_import_query([Bar], Result) -> iolist_to_binary(lists:reverse([build_import_query(Bar) | Result]));
+build_import_query([Bar|Tail], Result) -> build_import_query(Tail, [$,, build_import_query(Bar) | Result]).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+to_unixtime({Year, Month, Day}) ->
+    to_unixtime({{Year, Month, Day}, {0, 0, 0}});
+to_unixtime({{Year, Month, Day}, {Hour, Min, Sec}}) ->
+    trade_utils:to_unixtime({{Year, Month, Day}, {Hour, Min, Sec}}).
 
 period(min)     -> ?PERIOD_M1;
 period(min1)    -> ?PERIOD_M1;

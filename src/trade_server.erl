@@ -5,8 +5,14 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, code_change/3, terminate/2]).
 -import(trade_utils, [symbol/1, period/1, time/1, close/1]).
 
+-export([pack_history/1]).
+
 -define(SERVER, global:whereis_name(?MODULE)).
 -define(TCP_OPTIONS, [binary, {packet, 4}, {nodelay, true}, {reuseaddr, true}, {active, once}, {keepalive, true}]).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+-define(GET_HISTORY_CMD, $h).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -48,7 +54,12 @@ handle_cast(Data, State) ->
     {noreply, State}.
 
 handle_info({tcp, Socket, Data}, State=#state{socket=Socket}) ->
-    handle_command(unpack_command(Data), State);
+    Result =
+    case handle_command(unpack_command(Data), State) of
+        {noreply,      State} ->                          {noreply, State};
+        {reply, Reply, State} -> send_data(Socket, Reply), {noreply, State}
+    end,
+    inet:setopts(Socket,[{active,once}, {packet, 4}]), Result;
 
 handle_info({tcp_closed, Socket}, State=#state{socket=Socket, peername=Peername}) ->
     error_logger:info_msg("socket closed: ~s~n", [Peername]),
@@ -65,39 +76,35 @@ terminate(_, _) -> ok.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-handle_command({tick, TickInfo}, State=#state{socket=Socket, peername=Peername, counter=Counter}) ->
-    error_logger:info_msg("~s [~B]: getting tick info: ~p~n", [Peername, Counter, TickInfo]),
-    send_response(Socket, 0),
-    ok = inet:setopts(Socket,[{active,once}]),
-    {noreply, State#state{counter=Counter+1}};
-
-handle_command({hist, {Symbol, Period, From, To}}, State=#state{socket=Socket, peername=Peername, counter=Counter}) ->
-    error_logger:info_msg("~s [~B]: getting history for ~w~n", [Peername, Counter, {Symbol, Period, From, To}]),
-    case trade_db:get_history(Symbol, Period, From, To) of
-        undefined        -> send_response(Socket, 0);
-        HistoryTickInfo  -> send_response(Socket, pack_command(HistoryTickInfo))
-    end,
-    ok = inet:setopts(Socket,[{active,once}]),
-    {noreply, State#state{counter=Counter+1}}.
+handle_command({get_history, Symbol, Period, From, To}, State) ->
+    History = trade_db:get_history(Symbol, Period, From, To),
+    Args = [Symbol, Period, trade_utils:to_datestr(From), trade_utils:to_datestr(To), length(History)],
+    error_logger:info_msg("Getting history for ~s (~B): ~s - ~s: ~B ticks", Args),
+    {reply, pack_history(History), State}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-unpack_command(<<"t", Period:32/little, Time:32/little,
-                Open:64/little-float, High:64/little-float,
-                Low:64/little-float, Close:64/little-float,
-                Vol:64/little-float, Symbol/binary>>) ->
-    {tick, {Symbol, Period, Time, Open, High, Low, Close, Vol}};
+unpack_command(<<?GET_HISTORY_CMD, Period:32/little, From:32/little, To:32/little, Symbol/binary>>) ->
+    {get_history, Symbol, Period, From, To}.
 
-unpack_command(<<"h", Period:32/little, From:32/little, To:32/little, Symbol/binary>>) ->
-    {hist, {Symbol, Period, From, To}}.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-send_response(Socket, Result) ->
-    ok = gen_tcp:send(Socket, <<Result:64/little-float>>).
+send_data(Socket, Data) ->
+    inet:setopts(Socket, [{packet, 0}]),
+    gen_tcp:send(Socket, Data).
 
-pack_command({_Symbol, _Period, Time, Open, High, Low, Close, Volume}) ->
-    T = trade_utils:to_unixtime(Time),
-    <<T:32/little, Open:64/little-float, High:64/little-float, Low:64/little-float,
-        Close:64/little-float, Volume:64/little-float>>;
+pack_tick({_Symbol, _Period, Time, Open, High, Low, Close, Volume}) ->
+    UnixTime = trade_utils:to_unixtime(Time),
+    <<UnixTime:32/little,
+        Open:64/little-float,
+        High:64/little-float,
+        Low:64/little-float,
+        Close:64/little-float,
+        Volume:64/little-float>>.
 
-pack_command(List) when is_list(List)->
-    iolist_to_binary(lists:map(fun(X) -> pack_command(X) end, List)).
+pack_history([])        -> <<0:32/little>>;
+pack_history(undefined) -> <<0:32/little>>;
+pack_history(List) when is_list(List)->
+    Bin  = iolist_to_binary(lists:map(fun pack_tick/1, List)),
+    Size = length(List),
+    <<Size:32/little, Bin/binary>>.

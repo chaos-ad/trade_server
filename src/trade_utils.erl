@@ -51,6 +51,12 @@ to_unixtime({{Year, Month, Day}, {Hour, Min, Sec}}) ->
 to_datetime(Timestamp) when is_integer(Timestamp) ->
     calendar:gregorian_seconds_to_datetime(Timestamp + 62167219200).
 
+to_datestr(Timestamp) when is_integer(Timestamp) ->
+    to_datestr(to_datetime(Timestamp));
+
+to_datestr({{Year, Month, Day}, {Hour, Min, Sec}}) ->
+    lists:flatten(io_lib:format("~4.10.0B-~2.10.0B-~2.10.0B ~2.10.0B:~2.10.0B:~2.10.0B", [Year, Month, Day, Hour, Min, Sec])).
+
 local_time() ->
     to_unixtime(calendar:datetime_to_gregorian_seconds(calendar:local_time())).
 
@@ -58,3 +64,31 @@ universal_time() ->
     to_unixtime(calendar:datetime_to_gregorian_seconds(calendar:universal_time())).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+average(Data) when is_list(Data) ->
+    lists:sum(Data) / length(Data).
+
+weighted_average(Data) when is_list(Data) ->
+    N = length(Data),
+    {X, Y} = lists:foldl(fun({X, Y}, {R, S}) -> {R+X*Y, S+X} end, {0, 0}, lists:zip(lists:seq(1, N), Data)),
+    X / Y.
+
+moving_average(Period, Data) ->
+    Fun = fun(X, {Tmp, Res}) ->
+            NewTmp = [X|lists:sublist(Tmp, Period-1)],
+            NewAvg = average(NewTmp),
+            NewRes = [NewAvg|Res],
+            {NewTmp, NewRes}
+          end,
+    {_, Result} = lists:foldl(Fun, {[], []}, Data),
+    lists:reverse(Result).
+
+weighted_moving_average(Period, Data) ->
+    Fun = fun(X, {Tmp, Res}) ->
+            NewTmp = [X|lists:sublist(Tmp, Period-1)],
+            NewAvg = weighted_average(NewTmp),
+            NewRes = [NewAvg|Res],
+            {NewTmp, NewRes}
+          end,
+    {_, Result} = lists:foldl(Fun, {[], []}, Data),
+    lists:reverse(Result).
