@@ -77,7 +77,7 @@ terminate(_, _) -> ok.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 handle_command({get_history, Symbol, Period, From, To}, State) ->
-    History = trade_db:get_history(Symbol, Period, From, To),
+    History = trade_history:get_history(Symbol, Period, From, To),
     Args = [Symbol, Period, trade_utils:to_datestr(From), trade_utils:to_datestr(To), length(History)],
     error_logger:info_msg("Getting history for ~s (~B): ~s - ~s: ~B ticks", Args),
     {reply, pack_history(History), State}.
@@ -93,18 +93,13 @@ send_data(Socket, Data) ->
     inet:setopts(Socket, [{packet, 0}]),
     gen_tcp:send(Socket, Data).
 
-pack_tick({_Symbol, _Period, Time, Open, High, Low, Close, Volume}) ->
-    UnixTime = trade_utils:to_unixtime(Time),
-    <<UnixTime:32/little,
-        Open:64/little-float,
-        High:64/little-float,
-        Low:64/little-float,
-        Close:64/little-float,
-        Volume:64/little-float>>.
+pack_tick({Time, Open, High, Low, Close, Volume}) ->
+    <<Time:32/little,
+      Open:64/little-float,  High:64/little-float,
+       Low:64/little-float, Close:64/little-float,
+    Volume:64/little-float>>.
 
 pack_history([])        -> <<0:32/little>>;
 pack_history(undefined) -> <<0:32/little>>;
 pack_history(List) when is_list(List)->
-    Bin  = iolist_to_binary(lists:map(fun pack_tick/1, List)),
-    Size = length(List),
-    <<Size:32/little, Bin/binary>>.
+    iolist_to_binary(lists:map(fun pack_tick/1, List)).

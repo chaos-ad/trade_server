@@ -10,7 +10,8 @@
 -export([init/1]).
 
 %% Helper macro for declaring children of supervisor
--define(CHILD(I, Type), {I, {I, start_link, []}, permanent, 5000, Type, [I]}).
+-define(CHILD(I), {I, {I, start_link, []}, permanent, 60000, worker, [I]}).
+-define(CHILD(I, Options), {I, {I, start_link, Options}, permanent, 60000, worker, [I]}).
 
 %% ===================================================================
 %% API functions
@@ -24,6 +25,9 @@ start_link() ->
 %% ===================================================================
 
 init([]) ->
-    {ok, { {one_for_one, 5, 10}, [?CHILD(trade_db, worker),
-                                  ?CHILD(trade_server, worker)]} }.
+    {ok, { {one_for_one, 5, 10}, [
+        ?CHILD(trade_db),
+        ?CHILD(trade_history),
+        ?CHILD(trade_transaq_srv)
+    ]} }.
 

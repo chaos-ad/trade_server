@@ -2,13 +2,14 @@
  [
   {description, ""},
   {vsn, "1"},
-  {registered, []},
+  {registered, [trade_transaq_srv]},
   {applications, [
                   kernel,
                   stdlib,
                   inets,
                   crypto,
-                  emysql
+                  emysql,
+                  mnesia
                  ]},
   {mod, { trade_app, []}},
   {env, []}

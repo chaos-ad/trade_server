@@ -2,23 +2,38 @@
 -behavior(gen_server).
 -compile(export_all).
 
--include("periods.hrl").
--include_lib("emysql/include/emysql.hrl").
+-include("trade_periods.hrl").
 
 -export([start_link/0]).
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, code_change/3, terminate/2]).
-
--define(DUPLICATE_ENTRY,        1062).
--define(UNKNOWN_TABLE,          1051).
--define(TABLE_ALREADY_EXISTS,   1050).
--define(TABLE_DOES_NOT_EXISTS,  1146).
 
 -define(SERVER, {global, ?MODULE}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+-record(symbol, {id, code, name, market}).
+-record(bar, {timestamp, open, high, low, close, volume}).
+-record(range, {tab, from, to}).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+create_db() ->
+    ok = mnesia:create_schema([node()]),
+    ok = mnesia:start(),
+    {atomic, ok} = mnesia:create_table(symbol,[
+        {disc_copies, [node()]},
+        {attributes, record_info(fields, symbol)},
+        {index, [code]}
+    ]),
+    {atomic, ok} = mnesia:create_table(range,[
+        {disc_copies, [node()]},
+        {attributes, record_info(fields, range)}
+    ]),
+    stopped = mnesia:stop(),
+    ok.
+
 start_link() ->
-    gen_server:start_link({global, ?MODULE}, ?MODULE, [], []).
+    gen_server:start_link(?SERVER, ?MODULE, [], []).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -33,49 +48,35 @@ find_symbol(Arg) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-import_history(Symbol, Period, Ticks) ->
-    gen_server:call(?SERVER, {import_history, Symbol, Period, Ticks}, 60000).
+add_history(Symbol, Period, Ticks) ->
+    gen_server:call(?SERVER, {add_history, Symbol, Period, Ticks}, infinity).
 
 get_history(Symbol, Period, Timestamp) ->
-    gen_server:call(?SERVER, {get_history, Symbol, Period, Timestamp}, 60000).
+    gen_server:call(?SERVER, {get_history, Symbol, Period, Timestamp}, infinity).
 
 get_history(Symbol, Period, From, To) ->
-    gen_server:call(?SERVER, {get_history, Symbol, Period, From, To}, 60000).
+    gen_server:call(?SERVER, {get_history, Symbol, Period, From, To}, infinity).
+
+del_history(Symbol, Period) ->
+    gen_server:call(?SERVER, {del_history, Symbol, Period}, infinity).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+get_range(Symbol, Period) ->
+    gen_server:call(?SERVER, {get_range, Symbol, Period}, infinity).
+
+set_range(Symbol, Period, From, To) ->
+    gen_server:call(?SERVER, {set_range, Symbol, Period, From, To}, infinity).
+
+del_range(Symbol, Period) ->
+    gen_server:call(?SERVER, {del_range, Symbol, Period}, infinity).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 init([]) ->
     process_flag(trap_exit, true),
-
-    {ok, Options} = application:get_env(database),
-    Port = proplists:get_value(port, Options, 3306),
-    Host = proplists:get_value(host, Options, "localhost"),
-    User = proplists:get_value(user, Options, "trade"),
-    Pass = proplists:get_value(pass, Options, "trade"),
-    Name = proplists:get_value(name, Options, "trade"),
-
-    error_logger:info_msg("connecting to database ~s:~B...~n", [Host, Port]),
-    ok = emysql:add_pool(?MODULE, 1, User, Pass, Host, Port, Name, utf8),
-    ok = init_database(),
+    ok = mnesia:wait_for_tables([symbol, range], 30000),
     {ok, undefined}.
-
-init_database() ->
-    QueryBin =
-    <<"CREATE TABLE `symbols` ("
-        "`ID`     INT(10)      UNSIGNED NOT NULL,"
-        "`Code`   VARCHAR(10)           NOT NULL,"
-        "`Name`   VARCHAR(30)           NOT NULL,"
-        "`Market` INT(10)      UNSIGNED NOT NULL,"
-        "PRIMARY KEY (`ID`,`Code`)"
-        ") ENGINE=MyISAM DEFAULT CHARSET=utf8;">>,
-    case execute(QueryBin) of
-        R when is_record(R, ok_packet) -> ok;
-        R when is_record(R, error_packet) ->
-            case R#error_packet.code =:= ?TABLE_ALREADY_EXISTS of
-                true -> ok;
-                false -> throw_error(R)
-            end
-    end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -90,11 +91,25 @@ handle_call({find_symbol, Arg}, _, State) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-handle_call({import_history, Symbol, Period, Bars}, _, State) ->
+handle_call({add_history, Symbol, Period, Bars}, _, State) ->
     {reply, put_bars(Symbol, Period, Bars), State};
 
 handle_call({get_history, Symbol, Period, From, To}, _, State) ->
     {reply, get_bars(Symbol, Period, From, To), State};
+
+handle_call({del_history, Symbol, Period}, _, State) ->
+    {reply, del_bars(Symbol, Period), State};
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+handle_call({get_range, Symbol, Period}, _, State) ->
+    {reply, get_bar_range(Symbol, Period), State};
+
+handle_call({del_range, Symbol, Period}, _, State) ->
+    {reply, del_bar_range(Symbol, Period), State};
+
+handle_call({set_range, Symbol, Period, From, To}, _, State) ->
+    {reply, set_bar_range(Symbol, Period, {From, To}), State};
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -104,19 +119,13 @@ handle_info(_, State) -> {noreply, State}.
 code_change(_, State, _) -> {ok, State}.
 
 terminate(Reason, _State) ->
-    emysql:remove_pool(?MODULE),
-    error_logger:info_msg("terminated with reason ~p", [Reason]),
+    error_logger:info_msg("terminated with reason ~p~n", [Reason]),
     ok.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 add_symbol_info({ID, Code, Name, Market}) ->
-    Query = "INSERT INTO symbols VALUES (~B, ~s, ~s, ~B)",
-    QueryBin = iolist_to_binary(io_lib:format(Query, [ID, emysql_util:quote(Code), emysql_util:quote(Name), Market])),
-    case execute(QueryBin) of
-        R when is_record(R, ok_packet)    -> ok;
-        R when is_record(R, error_packet) -> throw_error(R)
-    end.
+    mnesia:dirty_write(#symbol{id=ID, code=Code, name=Name, market=Market}).
 
 get_symbol_info(Arg) ->
     case find_symbol_info(Arg) of
@@ -125,150 +134,88 @@ get_symbol_info(Arg) ->
     end.
 
 find_symbol_info(ID) when is_integer(ID) ->
-    Query = "SELECT * FROM symbols WHERE ID = ~B",
-    QueryBin = iolist_to_binary(io_lib:format(Query, [ID])),
-    case execute(QueryBin) of
-        R when is_record(R, error_packet)  -> throw_error(R);
-        R when is_record(R, result_packet) -> lists:map(fun list_to_tuple/1, R#result_packet.rows)
+    case mnesia:dirty_read({symbol, ID}) of
+        {symbol, ID, C, N, M} -> {ID, C, N, M};
+        _                     -> undefined
     end;
 
-find_symbol_info(Code) when is_list(Code) or is_binary(Code) ->
-    Query = "SELECT * FROM symbols WHERE Code LIKE ~s",
-    QueryBin = iolist_to_binary(io_lib:format(Query, [emysql_util:quote(Code)])),
-    case execute(QueryBin) of
-        R when is_record(R, error_packet)  -> throw_error(R);
-        R when is_record(R, result_packet) -> lists:map(fun list_to_tuple/1, R#result_packet.rows)
-    end.
+find_symbol_info(Code) when is_list(Code) ->
+    find_symbol_info(list_to_binary(Code));
+
+find_symbol_info(Code) when is_binary(Code) ->
+    Fn = fun({symbol, ID, C, N, M}) -> {ID, C, N, M} end,
+    lists:map(Fn, mnesia:dirty_match_object(#symbol{id='_', code=Code, name='_', market='_'}) ).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-put_bars(_, _, []) -> ok;
 put_bars(Symbol, Period, Bars) when is_list(Bars) ->
+    error_logger:info_msg("importing ~B bars...~n", [length(Bars)]),
+    Tab = get_tablename(Symbol, Period),
+    ok = create_table(Tab),
+    PutFn = fun({Time, Open, High, Low, Close, Volume}) ->
+                Bar = {Tab, trade_utils:to_unixtime(Time), Open, High, Low, Close, Volume},
+                mnesia:dirty_write(Tab, Bar)
+            end,
+    lists:foreach(PutFn, Bars).
 
-    TableName = get_tablename(Symbol, Period),
-    ok = create_table(TableName),
-
-    SubQuery = build_import_query(Bars),
-    QueryBin = <<"INSERT INTO ", TableName/binary, " VALUES ", SubQuery/binary>>,
-
-    case execute(QueryBin) of
-        R when is_record(R, ok_packet)    -> ok;
-        R when is_record(R, error_packet) -> throw_error(R)
+get_bars(Symbol, Period, From, To) ->
+    Tab = get_tablename(Symbol, Period),
+    case table_exists(Tab) of
+        true ->
+            T1 = trade_utils:to_unixtime(To),
+            T2 = trade_utils:to_unixtime(From),
+            ok = mnesia:wait_for_tables([Tab], 30000),
+            MatchHead = {Tab, '$1', '_', '_', '_', '_', '_'},
+            Guard = {'andalso', {'>=', '$1', T2}, {'=<', '$1', T1}},
+            Bars = mnesia:dirty_select(Tab,[{MatchHead, [Guard], ['$_']}]),
+            [ {T, O, H, L, C, V} || {_, T, O, H, L, C, V} <- Bars ];
+        false ->
+            []
     end.
 
-get_bars(Symbol, Period, From, To) when is_tuple(From), is_tuple(To) ->
+del_bars(Symbol, Period) ->
+    ok = del_bar_range(Symbol, Period),
+    ok = drop_table(get_tablename(Symbol, Period)).
 
-    TableName = get_tablename(Symbol, Period),
-
-    Query = "SELECT * FROM ~s WHERE Timestamp >= ~B AND Timestamp <= ~B",
-    QueryBin = iolist_to_binary(io_lib:format(Query, [TableName, to_unixtime(From), to_unixtime(To)])),
-
-    error_logger:info_msg("Starting query...~n"),
-    {T1, QRes} = timer:tc( fun() -> execute(QueryBin) end ),
-    case QRes of
-        R when is_record(R, result_packet) ->
-            error_logger:info_msg("Query takes ~B...~n", [T1]),
-            error_logger:info_msg("Parsing bars...~n"),
-            {T2, Result} = timer:tc(fun() -> lists:map(fun parse_bar/1, R#result_packet.rows) end),
-            error_logger:info_msg("Parsing takes ~B...~n", [T2]),
-            Result;
-        R when is_record(R, error_packet)  ->
-            case R#error_packet.code =:= ?TABLE_DOES_NOT_EXISTS of
-                true  -> [];
-                false -> throw_error(R)
-            end
+get_bar_range(Symbol, Period) ->
+    Tab = get_tablename(Symbol, Period),
+    case mnesia:dirty_read({range, Tab}) of
+        [{range, Tab, From, To}] -> {From, To};
+        _                        -> undefined
     end.
+
+del_bar_range(Symbol, Period) ->
+    mnesia:dirty_delete({range, get_tablename(Symbol, Period)}).
+
+set_bar_range(Symbol, Period, {From, To}) ->
+    T2 = trade_utils:to_unixtime(To),
+    T1 = trade_utils:to_unixtime(From),
+    mnesia:dirty_write({range, get_tablename(Symbol, Period), T1, T2}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Local functions:
 
-execute(Query) ->
-    try emysql:execute(?MODULE, Query, 1000*60)
-    catch
-        exit:connection_lock_timeout ->
-            error_logger:info_msg("connection lock timed out, retrying query", []),
-            execute(Query);
-        exit:Err -> {error, Err}
-    end.
-
-throw_error(R) when is_record(R, error_packet) ->
-    exit({error, {R#error_packet.code, R#error_packet.msg}}).
-
-parse_bar([Time, Open, High, Low, Close, Volume]) ->
-    {trade_utils:to_datetime(Time), Open, High, Low, Close, Volume}.
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 get_tablename(Symbol, Period) when is_integer(Period) ->
     {ID, _, _, _} = get_symbol_info(Symbol),
-    iolist_to_binary(io_lib:format("history_~B_~B", [ID, Period])).
+    list_to_atom(lists:flatten(io_lib:format("history_~B_~B", [ID, Period]))).
 
-table_exists(Name) ->
-    QueryBin = <<"SHOW TABLES LIKE '", Name/binary, "'">>,
-    case execute(QueryBin) of
-        R when is_record(R, error_packet)  -> throw_error(R);
-        R when is_record(R, result_packet) -> length(R#result_packet.rows) > 0
-    end.
-
-create_table(Name) ->
-    QueryBin =
-    <<"CREATE TABLE `", Name/binary, "` ("
-      "`Timestamp` INTEGER UNSIGNED NOT NULL,"
-      "`Open` DOUBLE NOT NULL,"
-      "`High` DOUBLE NOT NULL,"
-      "`Low` DOUBLE NOT NULL,"
-      "`Close` DOUBLE NOT NULL,"
-      "`Volume` DOUBLE NOT NULL,"
-      "PRIMARY KEY (`Timestamp`)"
-      ") ENGINE=MyISAM DEFAULT CHARSET=utf8;">>,
-    case execute(QueryBin) of
-        R when is_record(R, ok_packet)    -> ok;
-        R when is_record(R, error_packet) ->
-            case R#error_packet.code =:= ?TABLE_ALREADY_EXISTS of
-                true  -> ok;
-                false -> throw_error(R)
-            end
+create_table(Name) when is_atom(Name) ->
+    case mnesia:create_table(Name, [{disc_copies, [node()]}, {attributes, record_info(fields, bar)}, {type, ordered_set}]) of
+        {atomic, ok}                  -> ok;
+        {aborted,{already_exists, _}} -> ok
     end.
 
 drop_table(Name) ->
-    QueryBin = <<"DROP TABLE ", Name/binary>>,
-    case execute(QueryBin) of
-        R when is_record(R, ok_packet)    -> ok;
-        R when is_record(R, error_packet) ->
-            case R#error_packet.code =:= ?UNKNOWN_TABLE of
-                true  -> ok;
-                false -> throw_error(R)
-            end
+    case mnesia:delete_table(Name) of
+        {atomic, ok} -> ok;
+        {aborted,{no_exists, _}} -> ok
     end.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-build_import_query(Ticks) when is_list(Ticks) -> build_import_query(Ticks, []);
-build_import_query({Time, Open, High, Low, Close, Volume}) ->
-    Args = [trade_utils:to_unixtime(Time), Open, High, Low, Close, Volume],
-    io_lib:format("(~B,~w,~w,~w,~w,~w)", Args).
-
-build_import_query([Bar], Result) -> iolist_to_binary(lists:reverse([build_import_query(Bar) | Result]));
-build_import_query([Bar|Tail], Result) -> build_import_query(Tail, [$,, build_import_query(Bar) | Result]).
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-to_unixtime({Year, Month, Day}) ->
-    to_unixtime({{Year, Month, Day}, {0, 0, 0}});
-to_unixtime({{Year, Month, Day}, {Hour, Min, Sec}}) ->
-    trade_utils:to_unixtime({{Year, Month, Day}, {Hour, Min, Sec}}).
-
-period(min)     -> ?PERIOD_M1;
-period(min1)    -> ?PERIOD_M1;
-period(min5)    -> ?PERIOD_M5;
-period(min15)   -> ?PERIOD_M15;
-period(min30)   -> ?PERIOD_M30;
-period(hour)    -> ?PERIOD_H1;
-period(hour1)   -> ?PERIOD_H1;
-period(hour4)   -> ?PERIOD_H4;
-period(day)     -> ?PERIOD_D1;
-period(week)    -> ?PERIOD_W1;
-period(month)   -> ?PERIOD_MN1;
-period(Period) when is_integer(Period) -> Period.
+table_exists(Table) ->
+    try mnesia:table_info(Table, type) of
+        _ -> true
+    catch
+        exit:{aborted, {no_exists, _, _}} -> false
+    end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

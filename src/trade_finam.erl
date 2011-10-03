@@ -1,7 +1,7 @@
 -module(trade_finam).
 -compile(export_all).
 
--include("periods.hrl").
+-include("trade_periods.hrl").
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -18,11 +18,28 @@ download_symbols() ->
 prepare_symbols(Str) ->
     {ok, R} = iconverl:conv("utf-8", "cp1251", list_to_binary(string:strip(Str, both, $'))), R.
 
-get_history(Symbol, Period, From, To) ->
-%     error_logger:info_msg("downloading history...~n"),
+download_history(Symbol, Period, From, To) ->
+    TimeParts = make_time_parts(From, To),
+    lists:concat( [ download_history_simple(Symbol, Period, T1, T2) || {T1, T2} <- TimeParts ] ).
+
+download_history_simple(Symbol, Period, From, To) ->
+    T2 = trade_utils:to_datestr(To),
+    T1 = trade_utils:to_datestr(From),
+    error_logger:info_msg("downloading history for symbol '~s' and period ~B in range of [~s, ~s]...~n", [Symbol, Period, T1, T2]),
     {ok, {{_, 200, _}, _, Body}} = httpc:request(make_url(Symbol, Period, From, To)),
-%     error_logger:info_msg("parsing history...~n"),
-    parse_history(Body).
+    Result = parse_history(Body),
+    error_logger:info_msg("downloaded ~B bars~n", [length(Result)]),
+    Result.
+
+make_time_parts(From, To) ->
+    {T2, _} = trade_utils:to_datetime(To),
+    {T1, _} = trade_utils:to_datetime(From),
+    make_time_parts(T1, T2, []).
+
+make_time_parts({YF, MF, DF}, {YF, MF, DF}, Result) -> lists:reverse(Result);
+make_time_parts({YF, MF, DF}, {YF, MT, DT}, Result) -> lists:reverse([{{YF, MF, DF}, {YF, MT, DT}}|Result]);
+make_time_parts({YF, MF, DF}, {YT, MT, DT}, Result) when YF <  YT ->
+    make_time_parts({YF+1, 1, 1}, {YT, MT, DT}, [{{YF, MF, DF}, {YF, 12, 31}} | Result]).
 
 make_url(Symbol, Period, From, To) ->
     "http://195.128.78.52/get?" ++ make_query(Symbol, Period, From, To).

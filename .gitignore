@@ -1,3 +1,5 @@
 ebin
 deps
+logs
+database
 erl_crash.dump
