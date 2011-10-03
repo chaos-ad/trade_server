@@ -34,7 +34,7 @@ sell(Bar, State=#state{cost=Cost, total=Total}) ->
     end.
 
 set_state(StrategyState, State=#state{}) -> State#state{strategy_state=StrategyState}.
-% 
+%
 % invoke({M, F}, Args)    -> erlang:apply(M, F, Args);
 % invoke({M, F, A}, Args) -> erlang:apply(M, F, Args ++ A);
 % invoke(Functor, Args)   -> erlang:apply(Functor, Args).

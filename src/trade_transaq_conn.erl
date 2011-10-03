@@ -13,6 +13,9 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+logout(Pid) ->
+    send(Pid, "<command id='disconnect'/>").
+
 login(Pid, Login, Pass, Host, Port) ->
     Format =
     "<command id='connect'>"
@@ -24,6 +27,24 @@ login(Pid, Login, Pass, Host, Port) ->
         "<loglevel>0</loglevel>"
     "</command>",
     send(Pid, iolist_to_binary(io_lib:format(Format, [Login, Pass, Host, Port]))).
+
+send_order(Pid) ->
+    Cmd =
+    "<command id='neworder'>"
+        "<secid>6374</secid>"
+        "<client>TCNN9956</client>"
+        "<quantity>1</quantity>"
+        "<buysell>B</buysell>"                  %% "('В' - покупка, или 'S' – продажа)
+        "<bymarket/>"
+        "<brokerref>примечание</brokerref>" %% (будет возвращено в составе структур order и trade)
+        "<unfilled>ImmOrCancel</unfilled>" %% (другие возможные значения: CancelBalance, ImmOrCancel)
+        "<usecredit/>"
+        "<nosplit/>"
+    "</command>",
+    send(Pid, Cmd).
+
+get_hist_data(Pid) ->
+    send(Pid, "<command id='gethistorydata' secid='0' period='1' count='100000' reset='true'/>").
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
