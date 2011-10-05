@@ -28,6 +28,6 @@ init([]) ->
     {ok, { {one_for_one, 5, 10}, [
         ?CHILD(trade_db),
         ?CHILD(trade_history),
-        ?CHILD(trade_transaq_srv)
+        ?CHILD(trade_terminal_manager)
     ]} }.
 
