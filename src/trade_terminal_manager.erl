@@ -25,8 +25,8 @@ start_link() ->
 register_terminal(Socket) ->
     gen_server:call(?SERVER, {register_terminal, Socket}).
 
-% get_terminals() ->
-%     gen_server:call(?SERVER, get_terminals).
+get_terminals() ->
+    gen_server:call(?SERVER, get_terminals).
 
 init([]) ->
     process_flag(trap_exit, true),
@@ -49,6 +49,9 @@ handle_call({register_terminal, Pid}, _, State=#state{terminals=Terminals}) ->
     schedule_update(),
     {reply, ok, State#state{terminals=[#terminal{pid=Pid, name=undefined}|Terminals]}};
 
+handle_call(get_terminals, _, State=#state{terminals=Terminals}) ->
+    {reply, Terminals, State};
+
 handle_call(_, _, State) -> {reply, {error, invalid_request}, State}.
 handle_cast(_, State) -> {noreply, State}.
 
@@ -68,8 +71,8 @@ handle_info(update_accounts, State=#state{accounts=Accounts, terminals=Terminals
                             schedule_update(10000),
                             {noreply, State};
                         ok ->
+                            schedule_update(),
                             true = register(Name, Pid),
-                            schedule_update(1000),
                             error_logger:info_msg("Terminal ~p: logged as ~p~n", [Pid, Name]),
                             NewAccounts  = lists:keyreplace(false, 7, Accounts, A#account{logged=true}),
                             NewTerminals = lists:keyreplace(undefined, 3, Terminals, T#terminal{name=Name}),
@@ -90,7 +93,9 @@ handle_info({'EXIT', Pid, Reason}, State=#state{terminals=Terminals, accounts=Ac
             NewTerminals = lists:keydelete(Pid, 2, Terminals),
             NewState = State#state{terminals=NewTerminals},
             case Name of
-                undefined -> {noreply, NewState};
+                undefined ->
+                    error_logger:info_msg("Terminal ~p: logged off: ~p~n", [Pid, Reason]),
+                    {noreply, NewState};
                 _         ->
                     error_logger:info_msg("Terminal ~p: logged off as ~p: ~p~n", [Pid, Name, Reason]),
                     schedule_update(1000),

@@ -33,6 +33,12 @@ get_client_id(Pid) ->
 get_securities(Pid) ->
     gen_server:call(Pid, get_securities).
 
+get_server_status(Pid) ->
+    gen_server:call(Pid, get_server_status).
+
+send_test_order(Pid, SecCode, Quantity) ->
+    gen_server:call(Pid, {send_order, SecCode, Quantity}).
+
 read_all(Pid) ->
     gen_server:call(Pid, read_all).
 
@@ -47,8 +53,8 @@ init(Socket) ->
     {ok, #state{socket=Socket, endpoint=Peername}}.
 
 handle_call(logout, _, State=#state{socket=Socket}) ->
-    ok = do_send(Socket, "<command id='disconnect'/>"),
-    Reply = parse(recv_until(<<"^<result success">>, State)),
+    ok = send(Socket, "<command id='disconnect'/>"),
+    Reply = parse(recv_until(Socket, <<"^<result success">>)),
     {reply, Reply, State};
 
 handle_call({login, Login, Pass, Host, Port}, _, State=#state{socket=Socket}) ->
@@ -56,36 +62,42 @@ handle_call({login, Login, Pass, Host, Port}, _, State=#state{socket=Socket}) ->
     "<command id='connect'>"
         "<login>~s</login><password>~s</password><host>~s</host><port>~B</port>"
         "<logsdir>./logs/</logsdir><loglevel>0</loglevel>"
+        "<rqdelay>500</rqdelay><session_timeout>25</session_timeout><request_timeout>20</request_timeout>"
     "</command>",
-    ok = do_send(Socket, io_lib:format(Format, [Login, Pass, Host, Port])),
+    ok = send(Socket, io_lib:format(Format, [Login, Pass, Host, Port])),
 
     Response = parse(recv_until(Socket, <<"^<server_status|^<result success=\"false\">">>)),
 
-    case lists:keyfind(result, 1, Response) of
-        {result, [{success, "true" }], _} -> ok;
-        {result, [{success, "false"}], _} -> exit(invalid_request);
-        false                             -> exit(invalid_response)
-    end,
+    try
+        case lists:keyfind(result, 1, Response) of
+            {result, [{success, "true" }], _} -> ok;
+            {result, [{success, "false"}], _} -> exit(invalid_request);
+            false                             -> exit(invalid_response)
+        end,
 
-    case lists:keyfind(server_status, 1, Response) of
-        {server_status, [{id,_}, {connected,"true" }], []}       -> ok;
-        {server_status, [        {connected,"error"}], [Reason]} -> exit(Reason);
-        Other1                                                   -> exit({invalid_response, Other1})
-    end,
+        case lists:keyfind(server_status, 1, Response) of
+            {server_status, [{id,_}, {connected,"true" }], []}       -> ok;
+            {server_status, [        {connected,"error"}], [Reason]} -> exit(Reason);
+            Other1                                                   -> exit({invalid_response, Other1})
+        end,
 
-    Securities =
-    case lists:keyfind(securities, 1, Response) of
-        {securities, [], List} -> lists:map(fun simplify_security/1, List);
-        Other2                 -> exit({invalid_response, Other2})
-    end,
+        Securities =
+        case lists:keyfind(securities, 1, Response) of
+            {securities, [], List} -> lists:map(fun simplify_security/1, List);
+            Other2                 -> exit({invalid_response, Other2})
+        end,
 
-    ClientID =
-    case lists:keyfind(client, 1, Response) of
-        {client, [{id,ID},{remove,_}], _} -> ID;
-        Other3                            -> exit({invalid_response, Other3})
-    end,
+        ClientID =
+        case lists:keyfind(client, 1, Response) of
+            {client, [{id,ID},{remove,_}], _} -> ID;
+            Other3                            -> exit({invalid_response, Other3})
+        end,
 
-    {reply, ok, State#state{client_id=ClientID, securities=Securities}};
+        {reply, ok, State#state{client_id=ClientID, securities=Securities}}
+    catch
+        _:Error ->
+            {reply, {error, Error}, State}
+    end;
 
 handle_call(get_client_id, _, State=#state{client_id=ClientID}) ->
     {reply, ClientID, State};
@@ -93,14 +105,37 @@ handle_call(get_client_id, _, State=#state{client_id=ClientID}) ->
 handle_call(get_securities, _, State=#state{securities=Securities}) ->
     {reply, Securities, State};
 
+handle_call(get_server_status, _, State=#state{socket=Socket}) ->
+    ok = send(Socket, "<command id='server_status'/>"),
+    Response = parse(recv_until(Socket, <<"^<server_status|^<result success=\"false\">">>)),
+    {reply, Response, State};
+
+handle_call({send_order, Code, Amount}, _, State=#state{socket=Socket, client_id=ClientID, securities=Securities}) ->
+    case lists:keyfind(Code, 1, Securities) of
+        false         -> {reply, {error, invalid_code}, State};
+        {Code, SecID, _} ->
+            Format =
+            "<command id='neworder'>"
+                "<secid>~B</secid><client>~s</client><quantity>~B</quantity>"
+                "<buysell>B</buysell><bymarket/><brokerref>no</brokerref>"
+                "<unfilled>ImmOrCancel</unfilled><usecredit/><nosplit/>"
+            "</command>",
+            ok = send(Socket, io_lib:format(Format, [SecID, ClientID, Amount])),
+            Response = parse(recv_all(Socket, 3000)),
+            {reply, Response, State}
+    end;
+
+handle_call(read_all, _, State=#state{socket=Socket}) ->
+    {reply, recv_all(Socket), State};
+
 handle_call(_, _, State) -> {reply, {error, invalid_request}, State}.
 handle_cast(_, State) -> {noreply, State}.
 
 handle_info(ping, State=#state{socket=Socket}) ->
-    case do_send(Socket, <<"PING">>) of
+    case send(Socket, <<"PING">>) of
         {error, Error} -> {stop, {shutdown, Error}, State};
         ok ->
-            case do_recv(Socket, 1000) of
+            case recv(Socket, 1000) of
                 {error, Error}   -> {stop, {shutdown, Error}, State};
                 {ok, <<"PONG">>} -> {noreply, State}
             end
@@ -112,25 +147,24 @@ terminate(_, _) -> ok.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% send(Socket, Data) ->
-%     case gen_tcp:send(Socket, Data) of
-%         ok             -> {reply, ok, State};
-%         {error, Error} -> {stop, normal, {error, Error}, State}
-%     end;
-
-do_send(Socket, Data) ->
+send(Socket, Data) ->
     gen_tcp:send(Socket, Data).
 
-do_recv(Socket) -> do_recv(Socket, 0).
-do_recv(Socket, Time) when is_integer(Time), Time > 0 ->
-    gen_tcp:recv(Socket, 0, Time);
-do_recv(Socket, _) ->
-    gen_tcp:recv(Socket, 0).
+recv(Socket) -> recv(Socket, 0).
+recv(Socket, Time) when is_integer(Time), Time > 0 ->
+    R = gen_tcp:recv(Socket, 0, Time),
+%     error_logger:info_msg("Received:~n~p~n", [R]),
+    R;
+
+recv(Socket, _) ->
+    R = gen_tcp:recv(Socket, 0),
+%     error_logger:info_msg("Received:~n~p~n", [R]),
+    R.
 
 recv_all(Socket) -> recv_all(Socket, 100).
 recv_all(Socket, Timeout) -> lists:reverse( recv_all(Socket, Timeout, []) ).
 recv_all(Socket, Timeout, Result) ->
-    case do_recv(Socket, Timeout) of
+    case recv(Socket, Timeout) of
         {error, _} -> Result;
         {ok, Data} -> recv_all(Socket, Timeout, [Data|Result])
     end.
@@ -139,7 +173,7 @@ recv_until(Socket, Pattern) ->
     lists:reverse( recv_until(Socket, Pattern, []) ).
 
 recv_until(Socket, Pattern, Result) ->
-    {ok, Response} = do_recv(Socket),
+    {ok, Response} = recv(Socket),
     NewResult = [Response | Result],
     case re:run(Response, Pattern) of
         nomatch -> recv_until(Socket, Pattern, NewResult);
