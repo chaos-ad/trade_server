@@ -1,7 +1,8 @@
 -module(trade_terminal_manager).
 -compile(export_all).
 
-% -include("trade_terminal.hrl").
+%% TODO: Сделать очередь аккаунтов
+%%
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -28,6 +29,15 @@ register_terminal(Socket) ->
 get_terminals() ->
     gen_server:call(?SERVER, get_terminals).
 
+get_accounts() ->
+    gen_server:call(?SERVER, get_accounts).
+
+add_account(Account) ->
+    gen_server:call(?SERVER, {add_account, Account}).
+
+del_account(Name) ->
+    gen_server:call(?SERVER, {del_account, Name}).
+
 init([]) ->
     process_flag(trap_exit, true),
     {ok, Opts} = application:get_env(terminals),
@@ -42,15 +52,25 @@ init([]) ->
         {name, trade_terminal_acceptor},
         {loop, fun(Socket) -> trade_terminal:start(Socket) end}
     ]),
+
+    timer:send_interval(10000, update_accounts),
     {ok, #state{terminals=[], accounts=Accounts}}.
 
 handle_call({register_terminal, Pid}, _, State=#state{terminals=Terminals}) ->
     link(Pid),
-    schedule_update(),
     {reply, ok, State#state{terminals=[#terminal{pid=Pid, name=undefined}|Terminals]}};
 
 handle_call(get_terminals, _, State=#state{terminals=Terminals}) ->
     {reply, Terminals, State};
+
+handle_call(get_accounts, _, State=#state{accounts=Accounts}) ->
+    {reply, lists:map(fun(Acc) -> from_account(Acc) end, Accounts), State};
+
+handle_call({add_account, Account}, _, State=#state{accounts=Accounts}) ->
+    {reply, ok, State#state{accounts=[to_account(Account)|Accounts]}};
+
+handle_call({del_account, Name}, _, State=#state{accounts=Accounts}) ->
+    {reply, ok, State#state{accounts=lists:keydelete(Name, 2, Accounts)}};
 
 handle_call(_, _, State) -> {reply, {error, invalid_request}, State}.
 handle_cast(_, State) -> {noreply, State}.
@@ -66,12 +86,13 @@ handle_info(update_accounts, State=#state{accounts=Accounts, terminals=Terminals
                 T=#terminal{pid=Pid} ->
                     error_logger:info_msg("Terminal ~p: logging as ~p...~n", [Pid, Name]),
                     try trade_terminal:login(Pid, Login, Pass, Host, Port) of
+                        {error, {str, Error}} ->
+                            error_logger:info_msg("Terminal ~p: failed to login as ~p: ~ts~n", [Pid, Name, Error]),
+                            {noreply, State};
                         {error, Error} ->
                             error_logger:info_msg("Terminal ~p: failed to login as ~p: ~p~n", [Pid, Name, Error]),
-                            schedule_update(10000),
                             {noreply, State};
                         ok ->
-                            schedule_update(),
                             true = register(Name, Pid),
                             error_logger:info_msg("Terminal ~p: logged as ~p~n", [Pid, Name]),
                             NewAccounts  = lists:keyreplace(false, 7, Accounts, A#account{logged=true}),
@@ -80,7 +101,6 @@ handle_info(update_accounts, State=#state{accounts=Accounts, terminals=Terminals
                     catch
                         _:Error ->
                             error_logger:info_msg("Terminal ~p: failed to login as ~p: ~p~n", [Pid, Name, Error]),
-                            schedule_update(10000),
                             {noreply, State}
                     end
             end
@@ -98,10 +118,12 @@ handle_info({'EXIT', Pid, Reason}, State=#state{terminals=Terminals, accounts=Ac
                     {noreply, NewState};
                 _         ->
                     error_logger:info_msg("Terminal ~p: logged off as ~p: ~p~n", [Pid, Name, Reason]),
-                    schedule_update(1000),
-                    Account     = lists:keyfind(Name, 2, Accounts),
-                    NewAccounts = lists:keyreplace(Name, 2, Accounts, Account#account{logged=false}),
-                    {noreply, NewState#state{accounts=NewAccounts}}
+                    case lists:keyfind(Name, 2, Accounts) of
+                        false   -> {noreply, NewState};
+                        Account ->
+                            NewAccounts = lists:keyreplace(Name, 2, Accounts, Account#account{logged=false}),
+                            {noreply, NewState#state{accounts=NewAccounts}}
+                    end
             end
     end;
 
@@ -125,9 +147,7 @@ to_accounts(List) when is_list(List) ->
 to_account({Name, Login, Pass, Host, Port}) ->
     #account{name=Name, login=Login, pass=Pass, host=Host, port=Port}.
 
-schedule_update() ->
-    erlang:send(self(), update_accounts).
+from_account(#account{name=Name, login=Login, pass=Pass, host=Host, port=Port}) ->
+    {Name, Login, Pass, Host, Port}.
 
-schedule_update(Time) ->
-    erlang:send_after(Time, self(), update_accounts).
 

@@ -1,184 +1,249 @@
 -module(trade_terminal).
 -compile(export_all).
 
-% -include("trade_terminal.hrl").
+-behavior(gen_server).
+
+-include("trade_terminal_state.hrl").
 -include_lib("xmerl/include/xmerl.hrl").
 
-% -export([init/1, handle_call/3, handle_cast/2, handle_info/2, code_change/3, terminate/2]).
+-export
+([
+    init/1,
+    handle_call/3,
+    handle_cast/2,
+    handle_info/2,
+    code_change/3,
+    terminate/2
+]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--record(state, {socket, endpoint, client_id, securities}).
+-record(state, {socket, endpoint, terminal = #terminal_state{}}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--define(SOCKET_OPTIONS, [binary, {packet, 4}, {active, false}, {nodelay, true}, {reuseaddr, true}, {keepalive, true}]).
+-define(SOCKET_OPTIONS, [binary, {packet, 4}, {active, true}, {nodelay, true}, {reuseaddr, true}, {keepalive, true}]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 start(Socket) ->
-    {ok, Pid} = gen_server:start(?MODULE, Socket, []),
+    {ok, Pid} = gen_server:start(?MODULE, [], []),
     ok = gen_tcp:controlling_process(Socket, Pid),
+    ok = gen_server:call(Pid, {set_socket, Socket}),
     {ok, Pid}.
+
+close(Pid) ->
+    gen_server:call(Pid, close).
+
+get_state(Pid) ->
+    gen_server:call(Pid, get_terminal_state).
 
 login(Pid, Login, Pass, Host, Port) ->
     gen_server:call(Pid, {login, Login, Pass, Host, Port}, infinity).
 
 logout(Pid) ->
-    gen_server:call(Pid, logout).
-
-get_client_id(Pid) ->
-    gen_server:call(Pid, get_client_id).
-
-get_securities(Pid) ->
-    gen_server:call(Pid, get_securities).
-
-get_server_status(Pid) ->
-    gen_server:call(Pid, get_server_status).
+    gen_server:call(Pid, logout, infinity).
 
 send_test_order(Pid, SecCode, Quantity) ->
-    gen_server:call(Pid, {send_order, SecCode, Quantity}).
-
-read_all(Pid) ->
-    gen_server:call(Pid, read_all).
+    gen_server:call(Pid, {send_order, SecCode, Quantity}, infinity).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-init(Socket) ->
-    ok = inet:setopts(Socket, ?SOCKET_OPTIONS),
+init([]) ->
+    {ok, #state{}}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+handle_call({set_socket, Socket}, _, State=#state{}) ->
     Peername = trade_utils:peername(Socket),
     error_logger:info_msg("New terminal accepted: ~s~n", [Peername]),
+    ok = inet:setopts(Socket, ?SOCKET_OPTIONS),
     ok = trade_terminal_manager:register_terminal(self()),
-    timer:send_interval(5000, ping),
-    {ok, #state{socket=Socket, endpoint=Peername}}.
+    {reply, ok, State#state{socket=Socket, endpoint=Peername}};
 
-handle_call(logout, _, State=#state{socket=Socket}) ->
-    ok = send(Socket, "<command id='disconnect'/>"),
-    Reply = parse(recv_until(Socket, <<"^<result success">>)),
-    {reply, Reply, State};
+handle_call({login, Login, Pass, Host, Port}, From, State) ->
+    add_request(make_request(login, From, [Login, Pass, Host, Port]), State);
 
-handle_call({login, Login, Pass, Host, Port}, _, State=#state{socket=Socket}) ->
-    Format =
-    "<command id='connect'>"
-        "<login>~s</login><password>~s</password><host>~s</host><port>~B</port>"
-        "<logsdir>./logs/</logsdir><loglevel>0</loglevel>"
-        "<rqdelay>500</rqdelay><session_timeout>25</session_timeout><request_timeout>20</request_timeout>"
-    "</command>",
-    ok = send(Socket, io_lib:format(Format, [Login, Pass, Host, Port])),
+handle_call(close, _, State=#state{socket=Socket}) ->
+    gen_tcp:close(Socket),
+    {stop, normal, State};
 
-    Response = parse(recv_until(Socket, <<"^<server_status|^<result success=\"false\">">>)),
+handle_call(get_terminal_state, _, State=#state{terminal=Terminal}) ->
+    {reply, Terminal, State};
 
-    try
-        case lists:keyfind(result, 1, Response) of
-            {result, [{success, "true" }], _} -> ok;
-            {result, [{success, "false"}], _} -> exit(invalid_request);
-            false                             -> exit(invalid_response)
-        end,
+handle_call(Something, _, State=#state{endpoint=Endpoint}) ->
+    error_logger:info_msg("Terminal ~s receives unexpected call: ~p~n", [Endpoint, Something]),
+    {noreply, State}.
 
-        case lists:keyfind(server_status, 1, Response) of
-            {server_status, [{id,_}, {connected,"true" }], []}       -> ok;
-            {server_status, [        {connected,"error"}], [Reason]} -> exit(Reason);
-            Other1                                                   -> exit({invalid_response, Other1})
-        end,
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-        Securities =
-        case lists:keyfind(securities, 1, Response) of
-            {securities, [], List} -> lists:map(fun simplify_security/1, List);
-            Other2                 -> exit({invalid_response, Other2})
-        end,
+handle_cast(Something, State=#state{endpoint=Endpoint}) ->
+    error_logger:info_msg("Terminal ~s receives unexpected cast: ~p~n", [Endpoint, Something]),
+    {noreply, State}.
 
-        ClientID =
-        case lists:keyfind(client, 1, Response) of
-            {client, [{id,ID},{remove,_}], _} -> ID;
-            Other3                            -> exit({invalid_response, Other3})
-        end,
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-        {reply, ok, State#state{client_id=ClientID, securities=Securities}}
-    catch
-        _:Error ->
-            {reply, {error, Error}, State}
-    end;
+handle_info({tcp, Socket, Data}, State=#state{socket=Socket, endpoint=Endpoint, terminal=Terminal}) ->
+    update_terminal_state(parse(Data), Terminal)
+    error_logger:info_msg("Terminal ~s receives:~n~p~n", [Endpoint, Data]),
+    {noreply, State};
+%     case get_request(State) of
+%         undefined -> handle_update(Parsed, State);
+%         Request   -> handle_response(Request, Parsed, State)
+%     end;
 
-handle_call(get_client_id, _, State=#state{client_id=ClientID}) ->
-    {reply, ClientID, State};
+handle_info({tcp_error, Socket, Error}, State=#state{socket=Socket, endpoint=Endpoint}) ->
+    error_logger:info_msg("Terminal ~s closed: ~p~n", [Endpoint, Error]),
+    {stop, {shutdown, {error, Error}}, State};
 
-handle_call(get_securities, _, State=#state{securities=Securities}) ->
-    {reply, Securities, State};
+handle_info({tcp_closed, Socket}, State=#state{socket=Socket, endpoint=Endpoint}) ->
+    error_logger:info_msg("Terminal ~s closed~n", [Endpoint]),
+    {stop, {shutdown, tcp_closed}, State};
 
-handle_call(get_server_status, _, State=#state{socket=Socket}) ->
-    ok = send(Socket, "<command id='server_status'/>"),
-    Response = parse(recv_until(Socket, <<"^<server_status|^<result success=\"false\">">>)),
-    {reply, Response, State};
+handle_info(Something, State=#state{endpoint=Endpoint}) ->
+    error_logger:info_msg("Terminal ~s receives unexpected info: ~p~n", [Endpoint, Something]),
+    {noreply, State}.
 
-handle_call({send_order, Code, Amount}, _, State=#state{socket=Socket, client_id=ClientID, securities=Securities}) ->
-    case lists:keyfind(Code, 1, Securities) of
-        false         -> {reply, {error, invalid_code}, State};
-        {Code, SecID, _} ->
-            Format =
-            "<command id='neworder'>"
+code_change(_, State, _) ->
+    {ok, State}.
+
+terminate(_, _) ->
+    ok.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% handle_response(#request{name=login, from=From}, {server_status, [{id,ID},
+% handle_response(#request{name=login, from=From}, {server_status, [{id,ID},
+
+
+% handle_data({Name,Attributes,Body}, State) ->
+% 
+% handle_data( {server_status,[{id,ID},{connected,"true"}],[]}, State ) ->
+%     {ok, update_terminal_state(#server_status{id=list_to_integer(ID), connected=true}, State)};
+% 
+% handle_data( {server_status,[{id,ID},{connected,"true"},{recover,"true"}],[]}, State ) ->
+%     {ok, update_terminal_state(#server_status{id=list_to_integer(ID), connected=true, recover=true}, State)};
+% 
+% handle_data( {server_status,[{id,ID},{connected,"false"}],[]}, State ) ->
+%     {ok, update_terminal_state(#server_status{id=list_to_integer(ID), connected=false}, State)};
+% 
+% handle_data( {server_status,[{connected,"error"}],[Error]}, State ) ->
+%     {ok, update_terminal_state(#server_status{connected=false, msg=Error}, State)};
+% 
+% handle_data(Data, #state{endpoint=Endpoint}) ->
+%     error_logger:info_msg("Terminal ~s receives:~n~p~n", [Endpoint, Data]),
+%     ok.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+make_request(neworder, From, Args) ->
+    Format= "<command id='neworder'>"
                 "<secid>~B</secid><client>~s</client><quantity>~B</quantity>"
                 "<buysell>B</buysell><bymarket/><brokerref>no</brokerref>"
                 "<unfilled>ImmOrCancel</unfilled><usecredit/><nosplit/>"
             "</command>",
-            ok = send(Socket, io_lib:format(Format, [SecID, ClientID, Amount])),
-            Response = parse(recv_all(Socket, 3000)),
-            {reply, Response, State}
-    end;
+    io_lib:format(Format, Args);
 
-handle_call(read_all, _, State=#state{socket=Socket}) ->
-    {reply, recv_all(Socket), State};
+make_request(login, From, Args) ->
+    Format= "<command id='connect'>"
+                "<login>~s</login><password>~s</password><host>~s</host><port>~B</port>"
+                "<logsdir>./logs/</logsdir><loglevel>0</loglevel>"
+                "<rqdelay>500</rqdelay><session_timeout>25</session_timeout><request_timeout>20</request_timeout>"
+            "</command>",
+    io_lib:format(Format, Args);
 
-handle_call(_, _, State) -> {reply, {error, invalid_request}, State}.
-handle_cast(_, State) -> {noreply, State}.
-
-handle_info(ping, State=#state{socket=Socket}) ->
-    case send(Socket, <<"PING">>) of
-        {error, Error} -> {stop, {shutdown, Error}, State};
-        ok ->
-            case recv(Socket, 1000) of
-                {error, Error}   -> {stop, {shutdown, Error}, State};
-                {ok, <<"PONG">>} -> {noreply, State}
-            end
-    end;
-
-handle_info(_, State) -> {noreply, State}.
-code_change(_, State, _) -> {ok, State}.
-terminate(_, _) -> ok.
+make_request(disconnect,    From, []) -> "<command id='disconnect'/>";
+make_request(server_status, From, []) -> "<command id='server_status'/>".
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-send(Socket, Data) ->
-    gen_tcp:send(Socket, Data).
-
-recv(Socket) -> recv(Socket, 0).
-recv(Socket, Time) when is_integer(Time), Time > 0 ->
-    R = gen_tcp:recv(Socket, 0, Time),
-%     error_logger:info_msg("Received:~n~p~n", [R]),
-    R;
-
-recv(Socket, _) ->
-    R = gen_tcp:recv(Socket, 0),
-%     error_logger:info_msg("Received:~n~p~n", [R]),
-    R.
-
-recv_all(Socket) -> recv_all(Socket, 100).
-recv_all(Socket, Timeout) -> lists:reverse( recv_all(Socket, Timeout, []) ).
-recv_all(Socket, Timeout, Result) ->
-    case recv(Socket, Timeout) of
-        {error, _} -> Result;
-        {ok, Data} -> recv_all(Socket, Timeout, [Data|Result])
+parse(Bin) when is_binary(Bin) ->
+    case xmerl_scan:string(binary_to_list(Bin)) of
+        {Result, []} -> xmerl_lib:simplify_element(Result);
+        _            -> exit(parse_error)
     end.
 
-recv_until(Socket, Pattern) ->
-    lists:reverse( recv_until(Socket, Pattern, []) ).
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-recv_until(Socket, Pattern, Result) ->
-    {ok, Response} = recv(Socket),
-    NewResult = [Response | Result],
-    case re:run(Response, Pattern) of
-        nomatch -> recv_until(Socket, Pattern, NewResult);
-        _       -> NewResult
-    end.
+
+
+% update_terminal_state(Status=#server_status{}, State=#state{terminal=Terminal, handlers=Handlers}) ->
+%     {ok, State#state{terminal=Terminal#terminal_state{server_status=Status}}};
+
+% invoke_handlers(#state{
+
+
+
+
+
+%
+% handle_data({result,[{success,"false"}],[{message,[],[Error]}]}, connecting, State=#state{from=From})
+%         when From =/= undefined ->
+%     gen_fsm:reply(From, {error, {str, Error}}),
+%     {next_state, disconnected, State#state{from=undefined}};
+%
+% handle_data({server_status, Attributes, Fields}, connecting, State=#state{from=From}) ->
+%     case proplists:get_value(connected, Attributes) of
+%         "true" ->
+%             gen_fsm:reply(From, ok),
+%             {next_state, connected, State#state{from=undefined}};
+%         "error" ->
+%             [Error] = Fields,
+%             gen_fsm:reply(From, {error, {str, Error}}),
+%             {next_state, disconnected, State#state{from=undefined}}
+%     end;
+%
+% handle_data({candlekinds,[], CandleTypes}, _, State=#state{tstate=TState}) ->
+%     Fun = fun({kind,[],[{id,[],[ID]},{period,[],[Period]},{name,[],[Name]}]}) ->
+%             {list_to_integer(ID), list_to_integer(Period), Name}
+%           end,
+%     {ok, State#state{tstate=TState#terminal_state{candles=lists:map(Fun, CandleTypes)}}};
+
+
+% request(Type, From, State) ->
+%     request(Type, [], From, State).
+% 
+% request(Type, Args, From, State=#state{socket=Socket, endpoint=Endpoint, request_queue=Queue}) ->
+%     Request = make_request(Type, Args),
+%     error_logger:info_msg("Sending data to terminal ~s:~n~ts~n", [Endpoint, Request]),
+%     case gen_tcp:send(Socket, Request) of
+%         ok             -> {noreply, State#state{request_queue=queue:in({Type, From}, Queue)}};
+%         {error, Error} -> {stop, normal, {error, Error}, State}
+%     end.
+
+% send(Socket, Data) ->
+%     error_logger:info_msg("Sent:~n~p~n", [Data]),
+%     gen_tcp:send(Socket, Data).
+% 
+% recv(Socket) -> recv(Socket, 0).
+% recv(Socket, Time) when is_integer(Time), Time > 0 ->
+%     R = gen_tcp:recv(Socket, 0, Time),
+%     error_logger:info_msg("Received:~n~p~n", [R]),
+%     R;
+% 
+% recv(Socket, _) ->
+%     R = gen_tcp:recv(Socket, 0),
+%     error_logger:info_msg("Received:~n~p~n", [R]),
+%     R.
+% 
+% recv_all(Socket) -> recv_all(Socket, 100).
+% recv_all(Socket, Timeout) -> lists:reverse( recv_all(Socket, Timeout, []) ).
+% recv_all(Socket, Timeout, Result) ->
+%     case recv(Socket, Timeout) of
+%         {error, _} -> Result;
+%         {ok, Data} -> recv_all(Socket, Timeout, [Data|Result])
+%     end.
+% 
+% recv_until(Socket, Pattern) ->
+%     lists:reverse( recv_until(Socket, Pattern, []) ).
+% 
+% recv_until(Socket, Pattern, Result) ->
+%     {ok, Response} = recv(Socket),
+%     NewResult = [Response | Result],
+%     case re:run(Response, Pattern) of
+%         nomatch -> recv_until(Socket, Pattern, NewResult);
+%         _       -> NewResult
+%     end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -232,14 +297,8 @@ recv_until(Socket, Pattern, Result) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-parse(Data=[Bin|_]) when is_binary(Bin) ->
-    lists:map(fun(X) -> parse(X) end, Data);
-
-parse(Bin) when is_binary(Bin) ->
-    case xmerl_scan:string(binary_to_list(Bin)) of
-        {Result, []} -> xmerl_lib:simplify_element(Result);
-        _            -> exit(parse_error)
-    end.
+% parse(Data=[Bin|_]) when is_binary(Bin) ->
+%     lists:map(fun(X) -> parse(X) end, Data);
 
 
 % simplify_security({security, Attributes, Values}) ->
@@ -257,13 +316,13 @@ parse(Bin) when is_binary(Bin) ->
 % simplify_security_prop({minstep, [], [Value]})      -> {name, list_to_float(Value)};
 % simplify_security_prop({decimals, [], [Value]})     -> {name, list_to_float(Value)};
 % simplify_security_prop({point_cost, [], [Value]})   -> {name, list_to_float(Value)};
-simplify_security_prop({opmask, Attributes, []})    -> Attributes;
-simplify_security_prop({Name, [], [Value]})         -> {Name, Value}.
-
-simplify_security({security, Attributes, Properties}) ->
-    {hd(element(3, lists:keyfind(seccode,   1, Properties))),
-     list_to_integer(element(2, lists:keyfind(secid,     1, Attributes))),
-     hd(element(3, lists:keyfind(shortname, 1, Properties)))}.
+% simplify_security_prop({opmask, Attributes, []})    -> Attributes;
+% simplify_security_prop({Name, [], [Value]})         -> {Name, Value}.
+% 
+% simplify_security({security, Attributes, Properties}) ->
+%     {hd(element(3, lists:keyfind(seccode,   1, Properties))),
+%      list_to_integer(element(2, lists:keyfind(secid,     1, Attributes))),
+%      hd(element(3, lists:keyfind(shortname, 1, Properties)))}.
 %     L1 = lists:keysort(1, Attributes),
 %     L2 = lists:keysort(1, lists:flatten(lists:map(fun simplify_security_prop/1, Properties))),
 %     {security, lists:keymerge(1, L1, L2)}.
