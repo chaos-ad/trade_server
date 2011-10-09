@@ -35,4 +35,10 @@
     cancelbalance
 }).
 
--record(terminal_state, {server_status, client, markets, securities, candles}).
+-record(terminal_state, {
+    server_status=#server_status{},
+    client=#client{},
+    markets=[],
+    securities=[],
+    candles=[]
+}).

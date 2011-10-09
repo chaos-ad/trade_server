@@ -18,7 +18,8 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--record(state, {socket, endpoint, terminal = #terminal_state{}}).
+-record(request, {name, args, from}).
+-record(state,   {socket, endpoint, request_queue=queue:new(), terminal = #terminal_state{}}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -38,14 +39,30 @@ close(Pid) ->
 get_state(Pid) ->
     gen_server:call(Pid, get_terminal_state).
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 login(Pid, Login, Pass, Host, Port) ->
-    gen_server:call(Pid, {login, Login, Pass, Host, Port}, infinity).
+    send_request(Pid, login, [Login, Pass, Host, Port]).
+
+test_login(Pid) ->
+    login(Pid, "TCNN9956", "VYDYD8", "195.128.78.60", 3939).
 
 logout(Pid) ->
-    gen_server:call(Pid, logout, infinity).
+    send_request(Pid, logout).
 
 send_test_order(Pid, SecCode, Quantity) ->
-    gen_server:call(Pid, {send_order, SecCode, Quantity}, infinity).
+    send_request(Pid, neworder, [SecCode, Quantity]).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+send_request(Pid, Request) ->
+    send_request(Pid, Request, []).
+
+send_request(Pid, Request, Args) ->
+    send_request(Pid, Request, Args, infinity).
+
+send_request(Pid, Request, Args, Timeout) ->
+    gen_server:call(Pid, {request, Request, Args}, Timeout).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -61,12 +78,12 @@ handle_call({set_socket, Socket}, _, State=#state{}) ->
     ok = trade_terminal_manager:register_terminal(self()),
     {reply, ok, State#state{socket=Socket, endpoint=Peername}};
 
-handle_call({login, Login, Pass, Host, Port}, From, State) ->
-    add_request(make_request(login, From, [Login, Pass, Host, Port]), State);
+handle_call({request, Name, Args}, From, State) ->
+    add_request(Name, Args, From, State);
 
 handle_call(close, _, State=#state{socket=Socket}) ->
     gen_tcp:close(Socket),
-    {stop, normal, State};
+    {stop, normal, ok, State};
 
 handle_call(get_terminal_state, _, State=#state{terminal=Terminal}) ->
     {reply, Terminal, State};
@@ -83,14 +100,9 @@ handle_cast(Something, State=#state{endpoint=Endpoint}) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-handle_info({tcp, Socket, Data}, State=#state{socket=Socket, endpoint=Endpoint, terminal=Terminal}) ->
-    update_terminal_state(parse(Data), Terminal)
-    error_logger:info_msg("Terminal ~s receives:~n~p~n", [Endpoint, Data]),
-    {noreply, State};
-%     case get_request(State) of
-%         undefined -> handle_update(Parsed, State);
-%         Request   -> handle_response(Request, Parsed, State)
-%     end;
+handle_info({tcp, Socket, Data}, State=#state{socket=Socket, endpoint=Endpoint}) ->
+    error_logger:info_msg("Terminal ~s receives:~n~ts~n", [Endpoint, Data]),
+    {noreply, handle_data(parse(Data), State)};
 
 handle_info({tcp_error, Socket, Error}, State=#state{socket=Socket, endpoint=Endpoint}) ->
     error_logger:info_msg("Terminal ~s closed: ~p~n", [Endpoint, Error]),
@@ -107,36 +119,89 @@ handle_info(Something, State=#state{endpoint=Endpoint}) ->
 code_change(_, State, _) ->
     {ok, State}.
 
-terminate(_, _) ->
-    ok.
+terminate(Reason, #state{request_queue=Queue}) ->
+    Fun = fun(#request{from=From}) -> gen_server:reply(From, {error, Reason}) end,
+    lists:foreach( Fun, queue:to_list(Queue) ).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% handle_response(#request{name=login, from=From}, {server_status, [{id,ID},
-% handle_response(#request{name=login, from=From}, {server_status, [{id,ID},
-
-
-% handle_data({Name,Attributes,Body}, State) ->
-% 
-% handle_data( {server_status,[{id,ID},{connected,"true"}],[]}, State ) ->
-%     {ok, update_terminal_state(#server_status{id=list_to_integer(ID), connected=true}, State)};
-% 
-% handle_data( {server_status,[{id,ID},{connected,"true"},{recover,"true"}],[]}, State ) ->
-%     {ok, update_terminal_state(#server_status{id=list_to_integer(ID), connected=true, recover=true}, State)};
-% 
-% handle_data( {server_status,[{id,ID},{connected,"false"}],[]}, State ) ->
-%     {ok, update_terminal_state(#server_status{id=list_to_integer(ID), connected=false}, State)};
-% 
-% handle_data( {server_status,[{connected,"error"}],[Error]}, State ) ->
-%     {ok, update_terminal_state(#server_status{connected=false, msg=Error}, State)};
-% 
-% handle_data(Data, #state{endpoint=Endpoint}) ->
-%     error_logger:info_msg("Terminal ~s receives:~n~p~n", [Endpoint, Data]),
-%     ok.
+handle_data(Data, State=#state{terminal=Terminal, request_queue=Queue}) ->
+    NewTerminal = update_terminal_state(Data, Terminal),
+    NewState    = State#state{terminal=NewTerminal},
+    case queue:peek(Queue) of
+        empty -> NewState;
+        {value, #request{name=Name, from=From}} ->
+            case handle_response(Name, Data) of
+                noreply -> NewState;
+                {reply, Reply} ->
+                    gen_server:reply(From, Reply),
+                    NewState2 = NewState#state{request_queue=queue:drop(Queue)},
+                    ok = send_request(NewState2),
+                    NewState2
+            end
+    end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-make_request(neworder, From, Args) ->
+update_terminal_state({server_status, [{id, ID}, {connected, "true"}, {recover, "true"}], _}, State=#terminal_state{}) ->
+    State#terminal_state{server_status=#server_status{id=list_to_integer(ID), connected=true, recover=true}};
+
+update_terminal_state({server_status, [{id, ID}, {connected, "true"}], _}, State=#terminal_state{}) ->
+    State#terminal_state{server_status=#server_status{id=list_to_integer(ID), connected=true}};
+
+update_terminal_state({server_status, [{id, ID}, {connected, "false"}], _}, State=#terminal_state{}) ->
+    State#terminal_state{server_status=#server_status{id=list_to_integer(ID), connected=false}};
+
+update_terminal_state({server_status, [{connected, "error"}], _}, State=#terminal_state{}) ->
+    State#terminal_state{server_status=#server_status{connected=false}};
+
+update_terminal_state(_, State) -> State.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+handle_response(_, {result, [{success, "false"}], [{message, [], [Error]}]}) ->
+    {reply, {error, {str, Error}}};
+
+handle_response(login, {server_status, [{id, _}, {connected, "true"}, {recover, "true"}], _}) ->
+    {reply, {error, recover}};
+
+handle_response(login, {server_status, [{id, _}, {connected, "true"}], _}) ->
+    {reply, ok};
+
+handle_response(login, {server_status, [{id, _}, {connected, "false"}], _}) ->
+    {reply, {error, not_connected}};
+
+handle_response(login, {server_status, [{connected, "error"}], [Error]}) ->
+    {reply, {error, {str, Error}}};
+
+handle_response(Op, Data) ->
+    error_logger:info_msg("Operation: ~p, skipped data: ~p~n", [Op, Data]),
+    noreply.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+add_request(Name, Args, From, State=#state{request_queue=Queue}) ->
+    Request  = #request{name=Name, args=Args, from=From},
+    NewQueue = queue:in(Request, Queue),
+    NewState = State#state{request_queue=NewQueue},
+    case queue:is_empty(Queue) of
+        true  -> ok = send_request(NewState);
+        false -> ok
+    end,
+    {noreply, NewState}.
+
+send_request(#state{socket=Socket, endpoint=Endpoint, request_queue=Queue}) ->
+    case queue:peek(Queue) of
+        empty -> ok;
+        {value, #request{name=Name, args=Args}} ->
+            Request = make_request(Name, Args),
+            error_logger:info_msg("Terminal ~s sends:~n~ts~n", [Endpoint, iolist_to_binary(Request)]),
+            gen_tcp:send(Socket, Request)
+    end.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+make_request(neworder, Args) ->
     Format= "<command id='neworder'>"
                 "<secid>~B</secid><client>~s</client><quantity>~B</quantity>"
                 "<buysell>B</buysell><bymarket/><brokerref>no</brokerref>"
@@ -144,7 +209,7 @@ make_request(neworder, From, Args) ->
             "</command>",
     io_lib:format(Format, Args);
 
-make_request(login, From, Args) ->
+make_request(login, Args) ->
     Format= "<command id='connect'>"
                 "<login>~s</login><password>~s</password><host>~s</host><port>~B</port>"
                 "<logsdir>./logs/</logsdir><loglevel>0</loglevel>"
@@ -152,8 +217,8 @@ make_request(login, From, Args) ->
             "</command>",
     io_lib:format(Format, Args);
 
-make_request(disconnect,    From, []) -> "<command id='disconnect'/>";
-make_request(server_status, From, []) -> "<command id='server_status'/>".
+make_request(disconnect,    []) -> "<command id='disconnect'/>";
+make_request(server_status, []) -> "<command id='server_status'/>".
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
