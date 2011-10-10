@@ -5,6 +5,7 @@
 }).
 
 -record(client,  {
+    id,
     type,
     currency,
     ml_call,
@@ -16,6 +17,19 @@
 
 -record(market, {id, name}).
 -record(candle, {id, period, name}).
+
+-record(money_position, {
+    asset,
+    client,
+    shortname,
+    saldoin,
+    bought,
+    sold,
+    saldo,
+    ordbuy,
+    ordbuycond,
+    commission
+}).
 
 -record(security, {
     secid,
@@ -37,8 +51,10 @@
 
 -record(terminal_state, {
     server_status=#server_status{},
-    client=#client{},
+    clients=[],
     markets=[],
+    candles=[],
     securities=[],
-    candles=[]
+    positions=[],
+    overnight
 }).

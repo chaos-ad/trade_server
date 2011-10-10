@@ -39,6 +39,18 @@ close(Pid) ->
 get_state(Pid) ->
     gen_server:call(Pid, get_terminal_state).
 
+get_markets(Pid) ->
+    State = get_state(Pid),
+    State#terminal_state.markets.
+
+get_securities(Pid) ->
+    State = get_state(Pid),
+    State#terminal_state.securities.
+
+get_positions(Pid) ->
+    State = get_state(Pid),
+    State#terminal_state.positions.
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 login(Pid, Login, Pass, Host, Port) ->
@@ -100,8 +112,8 @@ handle_cast(Something, State=#state{endpoint=Endpoint}) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-handle_info({tcp, Socket, Data}, State=#state{socket=Socket, endpoint=Endpoint}) ->
-    error_logger:info_msg("Terminal ~s receives:~n~ts~n", [Endpoint, Data]),
+handle_info({tcp, Socket, Data}, State=#state{socket=Socket, endpoint=_Endpoint}) ->
+%     error_logger:info_msg("Terminal ~s receives:~n~ts~n", [_Endpoint, Data]),
     {noreply, handle_data(parse(Data), State)};
 
 handle_info({tcp_error, Socket, Error}, State=#state{socket=Socket, endpoint=Endpoint}) ->
@@ -125,7 +137,8 @@ terminate(Reason, #state{request_queue=Queue}) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-handle_data(Data, State=#state{terminal=Terminal, request_queue=Queue}) ->
+handle_data(Data, State=#state{endpoint=_Endpoint, terminal=Terminal, request_queue=Queue}) ->
+%     error_logger:info_msg("Terminal ~s receives:~n~p~n", [_Endpoint, Data]),
     NewTerminal = update_terminal_state(Data, Terminal),
     NewState    = State#state{terminal=NewTerminal},
     case queue:peek(Queue) of
@@ -143,6 +156,9 @@ handle_data(Data, State=#state{terminal=Terminal, request_queue=Queue}) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+update_terminal_state({result,[{success,_}],[]}, State=#terminal_state{}) ->
+    State; %% Ignoring result
+
 update_terminal_state({server_status, [{id, ID}, {connected, "true"}, {recover, "true"}], _}, State=#terminal_state{}) ->
     State#terminal_state{server_status=#server_status{id=list_to_integer(ID), connected=true, recover=true}};
 
@@ -155,7 +171,49 @@ update_terminal_state({server_status, [{id, ID}, {connected, "false"}], _}, Stat
 update_terminal_state({server_status, [{connected, "error"}], _}, State=#terminal_state{}) ->
     State#terminal_state{server_status=#server_status{connected=false}};
 
-update_terminal_state(_, State) -> State.
+update_terminal_state({client, [{id,ID},{remove,"true"}], []}, State=#terminal_state{clients=Clients}) ->
+    State#terminal_state{clients=lists:keydelete(ID, 2, Clients)};
+
+update_terminal_state({client, [{id, ID},{remove,"false"}], Args}, State=#terminal_state{clients=Clients}) ->
+    Currency = get_value(currency, Args),
+    Type     = get_value(atom, type, Args),
+    Client   = 
+    case Type of
+        spot ->
+            #client{id=ID, type=Type, currency=Currency};
+        leverage ->
+            Intraday  = get_value(integer, ml_intraday, Args),
+            Overnight = get_value(integer, ml_overnight, Args),
+            #client{id=ID, type=Type, currency=Currency, ml_intraday=Intraday, ml_overnight=Overnight};
+        margin_level ->
+            Call     = get_value(ml_call, Args),
+            Close    = get_value(ml_close, Args),
+            Restrict = get_value(ml_restrict, Args),
+            #client{id=ID, type=Type, currency=Currency, ml_call=Call, ml_close=Close, ml_restrict=Restrict}
+    end,
+    State#terminal_state{clients=[Client|lists:keydelete(ID, 2, Clients)]};
+
+update_terminal_state({markets,[],MarketList}, State=#terminal_state{}) ->
+    State#terminal_state{markets=lists:map(fun make_record/1, MarketList)};
+
+update_terminal_state({securities,[],SecurityList}, State=#terminal_state{securities=Securities}) ->
+    NewSecurities = lists:map(fun make_record/1, SecurityList),
+    UpdFn = fun(Sec, Result) ->  lists:keystore(Sec#security.secid, 2, Result, Sec) end,
+    State#terminal_state{securities=lists:foldl(UpdFn, Securities, NewSecurities)};
+
+update_terminal_state({candlekinds,[],CandleList}, State=#terminal_state{}) ->
+    State#terminal_state{candles=lists:map(fun make_record/1, CandleList)};
+
+update_terminal_state({positions,[],PositionList}, State=#terminal_state{positions=Positions}) ->
+    NewPositions = lists:map(fun make_record/1, PositionList),
+    State#terminal_state{positions=update_positions(NewPositions, Positions)};
+
+update_terminal_state({overnight,[{status,Overnight}],[]}, State=#terminal_state{}) ->
+    State#terminal_state{overnight=list_to_atom(Overnight)};
+
+update_terminal_state(Data, State) ->
+    error_logger:info_msg("Data ignored: ~p~n", [Data]),
+    State.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -174,8 +232,11 @@ handle_response(login, {server_status, [{id, _}, {connected, "false"}], _}) ->
 handle_response(login, {server_status, [{connected, "error"}], [Error]}) ->
     {reply, {error, {str, Error}}};
 
-handle_response(Op, Data) ->
-    error_logger:info_msg("Operation: ~p, skipped data: ~p~n", [Op, Data]),
+handle_response(logout, {result,[{success,"true"}],[]}) ->
+    {reply, ok};
+
+handle_response(_Op, _Data) ->
+%     error_logger:info_msg("Operation: ~p, skipped data: ~p~n", [_Op, _Data]),
     noreply.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -217,10 +278,101 @@ make_request(login, Args) ->
             "</command>",
     io_lib:format(Format, Args);
 
-make_request(disconnect,    []) -> "<command id='disconnect'/>";
+make_request(logout,    []) -> "<command id='disconnect'/>";
 make_request(server_status, []) -> "<command id='server_status'/>".
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+update_position(Pos=#money_position{}, Positions) ->
+    lists:keystore(money_position, 1, Positions, Pos).
+
+update_positions(NewPositions, Positions) ->
+    lists:foldl(fun(Pos, PosList) -> update_position(Pos, PosList) end, Positions, NewPositions).
+
+make_record({money_position, [], Args}) ->
+    #money_position{
+        asset       = get_value(asset, Args),
+        client      = get_value(client, Args),
+        shortname   = get_value(shortname, Args),
+        saldoin     = get_value(number, saldoin, Args),
+        bought      = get_value(number, bought, Args),
+        sold        = get_value(number, sold, Args),
+        saldo       = get_value(number, saldo, Args),
+        ordbuy      = get_value(number, ordbuy, Args),
+        ordbuycond  = get_value(number, ordbuycond, Args),
+        commission  = get_value(number, commission, Args)
+    };
+
+make_record({market,[{id,ID}],[Name]}) ->
+    #market{id=list_to_integer(ID), name=Name};
+
+make_record({kind,[],[{id,[],[ID]},{period,[],[Period]},{name,[],[Name]}]}) ->
+    #candle{id=list_to_integer(ID), period=list_to_integer(Period), name=Name};
+
+make_record({security, Attributes, Args}) ->
+
+    {UseCredit, ByMarket, NoSplit, ImmOrCancel, CancelBalance} =
+    case get_value(opmask, Args) of
+        undefined            -> list_to_tuple(lists:duplicate(5, undefined));
+        {opmask, OpMask, []} ->
+            {get_value(usecredit,     OpMask) =:= "yes",
+             get_value(bymarket,      OpMask) =:= "yes",
+             get_value(nosplit,       OpMask) =:= "yes",
+             get_value(immorcancel,   OpMask) =:= "yes",
+             get_value(cancelbalance, OpMask) =:= "yes"}
+    end,
+
+    #security{  secid           = get_value(number, secid, Attributes),
+                active          = get_value(atom, active, Attributes),
+                sectype         = get_value(sectype, Args),
+                seccode         = get_value(seccode, Args),
+                market          = get_value(number, market, Args),
+                shortname       = get_value(shortname, Args),
+                decimals        = get_value(decimals, Args),
+                minstep         = get_value(number, minstep, Args),
+                lotsize         = get_value(number, lotsize, Args),
+                point_cost      = get_value(number, point_cost, Args),
+                usecredit       = UseCredit,
+                bymarket        = ByMarket,
+                nosplit         = NoSplit,
+                immorcancel     = ImmOrCancel,
+                cancelbalance   = CancelBalance
+    }.
+
+get_value(Name, Values) ->
+    case lists:keyfind(Name, 1, Values) of
+        false               -> undefined;
+        {Name, Value}       -> Value;
+        {Name, [], [Value]} -> Value;
+        Other               -> Other
+    end.
+
+get_value(atom, Name, Values) ->
+    case get_value(Name, Values) of
+        undefined -> undefined;
+        Result    -> list_to_atom(Result)
+    end;
+
+get_value(integer, Name, Values) ->
+    case get_value(Name, Values) of
+        undefined -> undefined;
+        Result    -> list_to_integer(Result)
+    end;
+
+get_value(number, Name, Values) ->
+    case get_value(Name, Values) of
+        undefined -> undefined;
+        Result    -> list_to_number(Result)
+    end.
+
+list_to_number([C, $e | Value]) when C >= $0 andalso C =< $9 ->
+    list_to_number([C, $., $0, $e | Value]);
+
+list_to_number(Value) ->
+    try list_to_float(Value)
+    catch
+        error:badarg -> list_to_integer(Value)
+    end.
 
 parse(Bin) when is_binary(Bin) ->
     case xmerl_scan:string(binary_to_list(Bin)) of
@@ -229,190 +381,3 @@ parse(Bin) when is_binary(Bin) ->
     end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-
-
-% update_terminal_state(Status=#server_status{}, State=#state{terminal=Terminal, handlers=Handlers}) ->
-%     {ok, State#state{terminal=Terminal#terminal_state{server_status=Status}}};
-
-% invoke_handlers(#state{
-
-
-
-
-
-%
-% handle_data({result,[{success,"false"}],[{message,[],[Error]}]}, connecting, State=#state{from=From})
-%         when From =/= undefined ->
-%     gen_fsm:reply(From, {error, {str, Error}}),
-%     {next_state, disconnected, State#state{from=undefined}};
-%
-% handle_data({server_status, Attributes, Fields}, connecting, State=#state{from=From}) ->
-%     case proplists:get_value(connected, Attributes) of
-%         "true" ->
-%             gen_fsm:reply(From, ok),
-%             {next_state, connected, State#state{from=undefined}};
-%         "error" ->
-%             [Error] = Fields,
-%             gen_fsm:reply(From, {error, {str, Error}}),
-%             {next_state, disconnected, State#state{from=undefined}}
-%     end;
-%
-% handle_data({candlekinds,[], CandleTypes}, _, State=#state{tstate=TState}) ->
-%     Fun = fun({kind,[],[{id,[],[ID]},{period,[],[Period]},{name,[],[Name]}]}) ->
-%             {list_to_integer(ID), list_to_integer(Period), Name}
-%           end,
-%     {ok, State#state{tstate=TState#terminal_state{candles=lists:map(Fun, CandleTypes)}}};
-
-
-% request(Type, From, State) ->
-%     request(Type, [], From, State).
-% 
-% request(Type, Args, From, State=#state{socket=Socket, endpoint=Endpoint, request_queue=Queue}) ->
-%     Request = make_request(Type, Args),
-%     error_logger:info_msg("Sending data to terminal ~s:~n~ts~n", [Endpoint, Request]),
-%     case gen_tcp:send(Socket, Request) of
-%         ok             -> {noreply, State#state{request_queue=queue:in({Type, From}, Queue)}};
-%         {error, Error} -> {stop, normal, {error, Error}, State}
-%     end.
-
-% send(Socket, Data) ->
-%     error_logger:info_msg("Sent:~n~p~n", [Data]),
-%     gen_tcp:send(Socket, Data).
-% 
-% recv(Socket) -> recv(Socket, 0).
-% recv(Socket, Time) when is_integer(Time), Time > 0 ->
-%     R = gen_tcp:recv(Socket, 0, Time),
-%     error_logger:info_msg("Received:~n~p~n", [R]),
-%     R;
-% 
-% recv(Socket, _) ->
-%     R = gen_tcp:recv(Socket, 0),
-%     error_logger:info_msg("Received:~n~p~n", [R]),
-%     R.
-% 
-% recv_all(Socket) -> recv_all(Socket, 100).
-% recv_all(Socket, Timeout) -> lists:reverse( recv_all(Socket, Timeout, []) ).
-% recv_all(Socket, Timeout, Result) ->
-%     case recv(Socket, Timeout) of
-%         {error, _} -> Result;
-%         {ok, Data} -> recv_all(Socket, Timeout, [Data|Result])
-%     end.
-% 
-% recv_until(Socket, Pattern) ->
-%     lists:reverse( recv_until(Socket, Pattern, []) ).
-% 
-% recv_until(Socket, Pattern, Result) ->
-%     {ok, Response} = recv(Socket),
-%     NewResult = [Response | Result],
-%     case re:run(Response, Pattern) of
-%         nomatch -> recv_until(Socket, Pattern, NewResult);
-%         _       -> NewResult
-%     end.
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% login(Socket, Login, Pass, Host, Port) ->
-%     Format =
-%     "<command id='connect'>"
-%         "<login>~s</login>"
-%         "<password>~s</password>"
-%         "<host>~s</host>"
-%         "<port>~B</port>"
-%         "<logsdir>./logs/</logsdir>"
-%         "<loglevel>0</loglevel>"
-%     "</command>",
-%     ok = send(Socket, iolist_to_binary(io_lib:format(Format, [Login, Pass, Host, Port]))),
-%     recv_until(<<"^<server_status|^<result success=\"false\">">>, Pid).
-% 
-% test_login(Pid) ->
-%     login(Pid, "TCNN9956", "VYDYD8", "195.128.78.60", 3939).
-% 
-% logout(Pid) ->
-%     ok = send(Pid, "<command id='disconnect'/>"),
-%     recv_until(<<"^<result success">>, Pid).
-% 
-% server_status(Pid) ->
-%     ok = send(Pid, "<command id='server_status'/>"),
-%     recv_until(<<"^<server_status|^<result success=\"false\">">>, Pid).
-% 
-% get_securities(Pid) ->
-%     ok = send(Pid, "<command id='get_securities'/>"),
-%     parse(securities, recv_until(<<"</securities>$|^<result success=\"false\">">>, Pid)).
-% 
-% get_hist_data(Pid, ID, Period, Count) when is_integer(ID), is_integer(Period), is_integer(Count) ->
-%     Msg = "<command id='gethistorydata' secid='~B' period='~B' count='~B' reset='true'/>",
-%     send(Pid, io_lib:format(Msg, [ID, Period, Count])).
-% 
-% send_order(Pid) ->
-%     Cmd =
-%     "<command id='neworder'>"
-%         "<secid>6374</secid>"
-%         "<client>virt/9956</client>"
-%         "<quantity>1</quantity>"
-%         "<buysell>B</buysell>"                  %% "('В' - покупка, или 'S' – продажа)
-%         "<bymarket/>"
-%         "<brokerref>примечание</brokerref>" %% (будет возвращено в составе структур order и trade)
-%         "<unfilled>ImmOrCancel</unfilled>" %% (другие возможные значения: CancelBalance, ImmOrCancel)
-%         "<usecredit/>"
-%         "<nosplit/>"
-%     "</command>",
-%     send(Pid, Cmd).
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% parse(Data=[Bin|_]) when is_binary(Bin) ->
-%     lists:map(fun(X) -> parse(X) end, Data);
-
-
-% simplify_security({security, Attributes, Values}) ->
-%     lists:map(fun({Tag, Attr, []} -> Attr; ({Tag, [], Val}) -> 
-%     {security, 
-%     {security, [get_value(secid,     Attributes),
-%                 get_value(decimals,  Values),
-%                 get_value(seccode,   Values),
-%                 get_value(shortname, Values),
-%                 get_value(minstep,   Values),
-%                 get_value(lotsize,   Values)]}.
-
-% simplify_security_prop({market, [], [Value]})       -> {name, list_to_float(Value)};
-% simplify_security_prop({lotsize, [], [Value]})      -> {name, list_to_float(Value)};
-% simplify_security_prop({minstep, [], [Value]})      -> {name, list_to_float(Value)};
-% simplify_security_prop({decimals, [], [Value]})     -> {name, list_to_float(Value)};
-% simplify_security_prop({point_cost, [], [Value]})   -> {name, list_to_float(Value)};
-% simplify_security_prop({opmask, Attributes, []})    -> Attributes;
-% simplify_security_prop({Name, [], [Value]})         -> {Name, Value}.
-% 
-% simplify_security({security, Attributes, Properties}) ->
-%     {hd(element(3, lists:keyfind(seccode,   1, Properties))),
-%      list_to_integer(element(2, lists:keyfind(secid,     1, Attributes))),
-%      hd(element(3, lists:keyfind(shortname, 1, Properties)))}.
-%     L1 = lists:keysort(1, Attributes),
-%     L2 = lists:keysort(1, lists:flatten(lists:map(fun simplify_security_prop/1, Properties))),
-%     {security, lists:keymerge(1, L1, L2)}.
-
-% 
-% simplify_security({security, [{secid,"834"},{active,"true"}],
-%                              [{seccode,[],["GRAZ"]},
-%                               {shortname,[],
-%                                [[1056,1072,1079,1075,1091,1083,1103,1081]]},
-%                               {decimals,[],["2"]},
-%                               {market,[],["1"]},
-%                               {sectype,[],["SHARE"]},
-%                               {opmask,
-%                                [{usecredit,"yes"},
-%                                 {bymarket,"no"},
-%                                 {nosplit,"yes"},
-%                                 {immorcancel,"yes"},
-%                                 {cancelbalance,"yes"}],
-%                                []},
-%                               {minstep,[],["0.01"]},
-%                               {lotsize,[],["100"]},
-%                               {point_cost,[],["1"]}]},
-
-% get_value(Name, Values) ->
-%     case lists:keyfind(Name, 1, Values) of
-%         {Name, Value}       -> {Name, Value};
-%         {Name, [], [Value]} -> {Name, Value}
-%     end.
