@@ -62,8 +62,8 @@ test_login(Pid) ->
 logout(Pid) ->
     send_request(Pid, logout).
 
-send_test_order(Pid, SecCode, Quantity) ->
-    send_request(Pid, neworder, [SecCode, Quantity]).
+neworder(Pid, Market, Security, Amount) ->
+    send_request(Pid, neworder, [Market, Security, Amount]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -90,6 +90,17 @@ handle_call({set_socket, Socket}, _, State=#state{}) ->
     ok = trade_terminal_manager:register_terminal(self()),
     {reply, ok, State#state{socket=Socket, endpoint=Peername}};
 
+handle_call({request, neworder, [Market, Security, Amount]}, From, State=#state{terminal=Terminal}) ->
+    try
+        ClientID   = get_client_id(Terminal),
+        SecurityID = get_security_id(Market, Security, Terminal),
+        add_request(neworder, [SecurityID, ClientID, Amount], From, State)
+    catch
+        _:Error ->
+            error_logger:info_msg("Error: ~p~n", [erlang:get_stacktrace()]),
+            {reply, {error, Error}, State}
+    end;
+
 handle_call({request, Name, Args}, From, State) ->
     add_request(Name, Args, From, State);
 
@@ -113,7 +124,7 @@ handle_cast(Something, State=#state{endpoint=Endpoint}) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 handle_info({tcp, Socket, Data}, State=#state{socket=Socket, endpoint=_Endpoint}) ->
-%     error_logger:info_msg("Terminal ~s receives:~n~ts~n", [_Endpoint, Data]),
+    error_logger:info_msg("Terminal ~s receives:~n~ts~n", [_Endpoint, Data]),
     {noreply, handle_data(parse(Data), State)};
 
 handle_info({tcp_error, Socket, Error}, State=#state{socket=Socket, endpoint=Endpoint}) ->
@@ -262,13 +273,29 @@ send_request(#state{socket=Socket, endpoint=Endpoint, request_queue=Queue}) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-make_request(neworder, Args) ->
-    Format= "<command id='neworder'>"
-                "<secid>~B</secid><client>~s</client><quantity>~B</quantity>"
-                "<buysell>B</buysell><bymarket/><brokerref>no</brokerref>"
-                "<unfilled>ImmOrCancel</unfilled><usecredit/><nosplit/>"
-            "</command>",
-    io_lib:format(Format, Args);
+get_client_id(#terminal_state{clients=[#client{id=ID}]}) -> ID;
+get_client_id(#terminal_state{}) -> exit(invalid_client).
+
+get_security_id(Market, Security, #terminal_state{securities=Securities}) -> get_security_id(Market, Security, Securities);
+get_security_id(Market, Security, Securities) when is_list(Securities) ->
+    case lists:keytake(Security, 5, Securities) of
+        {value, #security{secid=ID, market=Market}, _} -> ID;
+        {value, #security{}, Rest} -> get_security_id(Market, Security, Rest);
+        false -> exit(invalid_security)
+    end.
+
+make_request(neworder, [SecurityID, ClientID, Amount]) ->
+    Format =
+    "<command id='neworder'>"
+        "<secid>~B</secid>"
+        "<client>~s</client>"
+        "<quantity>~B</quantity>"
+        "<buysell>B</buysell>"
+        "<unfilled>PutInQueue</unfilled>" %% CancelBalance, ImmOrCancel
+        "<bymarket/>"
+        "<nosplit/>"
+    "</command>",
+    io_lib:format(Format, [SecurityID, ClientID, Amount]);
 
 make_request(login, Args) ->
     Format= "<command id='connect'>"
@@ -278,8 +305,8 @@ make_request(login, Args) ->
             "</command>",
     io_lib:format(Format, Args);
 
-make_request(logout,    []) -> "<command id='disconnect'/>";
-make_request(server_status, []) -> "<command id='server_status'/>".
+make_request(logout, _) -> "<command id='disconnect'/>";
+make_request(server_status, _) ->"<command id='server_status'/>".
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -344,6 +371,7 @@ get_value(Name, Values) ->
         false               -> undefined;
         {Name, Value}       -> Value;
         {Name, [], [Value]} -> Value;
+        {Name, [], [Value1, Value2]} -> Value1 ++ Value2;
         Other               -> Other
     end.
 
