@@ -31,6 +31,19 @@
     commission
 }).
 
+-record(sec_position, {
+    client,
+    secid,
+    shortname,
+    saldoin,
+    saldomin,
+    bought,
+    sold,
+    saldo,
+    ordbuy,
+    ordsell
+}).
+
 -record(security, {
     secid,
     sectype,
@@ -49,6 +62,54 @@
     cancelbalance
 }).
 
+-record(trade, {
+    secid,
+    tradeno,
+    orderno,
+    board,
+    client,
+    buysell,
+    time,
+    brokerref,
+    value,
+    comission,
+    price,
+    quantity,
+    yield,
+    currentpos,
+    accruedint,
+    tradetype,
+    settlecode
+}).
+
+-record(order, {
+    transactionid,
+    orderno,
+    secid,
+    board,
+    client,
+    status,
+    buysell,
+    time,
+    accepttime,
+    brokerref,
+    value,
+    accruedint,
+    settlecode,
+    balance,
+    price,
+    quantity,
+    yield,
+    withdrawtime,
+    condition,
+    conditionvalue,
+    validafter,
+    validbefore,
+    maxcomission,
+    result
+}).
+
+
 -record(terminal_state, {
     server_status=#server_status{},
     clients=[],
@@ -56,5 +117,7 @@
     candles=[],
     securities=[],
     positions=[],
+    trades=[],
+    orders=[],
     overnight
 }).

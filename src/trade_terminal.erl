@@ -51,6 +51,14 @@ get_positions(Pid) ->
     State = get_state(Pid),
     State#terminal_state.positions.
 
+get_orders(Pid) ->
+    State = get_state(Pid),
+    State#terminal_state.orders.
+
+get_trades(Pid) ->
+    State = get_state(Pid),
+    State#terminal_state.trades.
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 login(Pid, Login, Pass, Host, Port) ->
@@ -62,8 +70,14 @@ test_login(Pid) ->
 logout(Pid) ->
     send_request(Pid, logout).
 
-neworder(Pid, Market, Security, Amount) ->
-    send_request(Pid, neworder, [Market, Security, Amount]).
+buy_order(Pid, Market, Security, Amount) ->
+    send_request(Pid, neworder, [buy, Market, Security, Amount]).
+
+sell_order(Pid, Market, Security, Amount) ->
+    send_request(Pid, neworder, [sell, Market, Security, Amount]).
+
+close_order(Pid, TransactionID) ->
+    send_request(Pid, cancelorder, [TransactionID]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -90,14 +104,13 @@ handle_call({set_socket, Socket}, _, State=#state{}) ->
     ok = trade_terminal_manager:register_terminal(self()),
     {reply, ok, State#state{socket=Socket, endpoint=Peername}};
 
-handle_call({request, neworder, [Market, Security, Amount]}, From, State=#state{terminal=Terminal}) ->
+handle_call({request, neworder, [Mode, Market, Security, Amount]}, From, State=#state{terminal=Terminal}) ->
     try
         ClientID   = get_client_id(Terminal),
         SecurityID = get_security_id(Market, Security, Terminal),
-        add_request(neworder, [SecurityID, ClientID, Amount], From, State)
+        add_request(neworder, [Mode, SecurityID, ClientID, Amount], From, State)
     catch
         _:Error ->
-            error_logger:info_msg("Error: ~p~n", [erlang:get_stacktrace()]),
             {reply, {error, Error}, State}
     end;
 
@@ -124,7 +137,7 @@ handle_cast(Something, State=#state{endpoint=Endpoint}) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 handle_info({tcp, Socket, Data}, State=#state{socket=Socket, endpoint=_Endpoint}) ->
-    error_logger:info_msg("Terminal ~s receives:~n~ts~n", [_Endpoint, Data]),
+%     error_logger:info_msg("Terminal ~s receives:~n~ts~n", [_Endpoint, Data]),
     {noreply, handle_data(parse(Data), State)};
 
 handle_info({tcp_error, Socket, Error}, State=#state{socket=Socket, endpoint=Endpoint}) ->
@@ -222,6 +235,14 @@ update_terminal_state({positions,[],PositionList}, State=#terminal_state{positio
 update_terminal_state({overnight,[{status,Overnight}],[]}, State=#terminal_state{}) ->
     State#terminal_state{overnight=list_to_atom(Overnight)};
 
+update_terminal_state({trades, [], TradeList}, State=#terminal_state{trades=Trades}) ->
+    NewTrades = lists:map(fun make_record/1, TradeList),
+    State#terminal_state{trades=update_trades(NewTrades, Trades)};
+
+update_terminal_state({orders, [], OrderList}, State=#terminal_state{orders=Orders}) ->
+    NewOrders = lists:map(fun make_record/1, OrderList),
+    State#terminal_state{orders=update_orders(NewOrders, Orders)};
+
 update_terminal_state(Data, State) ->
     error_logger:info_msg("Data ignored: ~p~n", [Data]),
     State.
@@ -244,6 +265,12 @@ handle_response(login, {server_status, [{connected, "error"}], [Error]}) ->
     {reply, {error, {str, Error}}};
 
 handle_response(logout, {result,[{success,"true"}],[]}) ->
+    {reply, ok};
+
+handle_response(neworder, {result,[{success,"true"},{transactionid,ID}],[]}) ->
+    {reply, list_to_integer(ID)};
+
+handle_response(cancelorder, {result, [{success, "true"}], _}) ->
     {reply, ok};
 
 handle_response(_Op, _Data) ->
@@ -284,18 +311,27 @@ get_security_id(Market, Security, Securities) when is_list(Securities) ->
         false -> exit(invalid_security)
     end.
 
-make_request(neworder, [SecurityID, ClientID, Amount]) ->
+make_request(neworder, [Mode, SecurityID, ClientID, Amount]) ->
     Format =
     "<command id='neworder'>"
         "<secid>~B</secid>"
         "<client>~s</client>"
         "<quantity>~B</quantity>"
-        "<buysell>B</buysell>"
+        "<buysell>~s</buysell>"
         "<unfilled>PutInQueue</unfilled>" %% CancelBalance, ImmOrCancel
         "<bymarket/>"
         "<nosplit/>"
     "</command>",
-    io_lib:format(Format, [SecurityID, ClientID, Amount]);
+    BuySell =
+    case Mode of
+        buy  -> "B";
+        sell -> "S"
+    end,
+    io_lib:format(Format, [SecurityID, ClientID, Amount, BuySell]);
+
+make_request(cancelorder, Args) ->
+    Format = "<command id='cancelorder'><transactionid>~B</transactionid></command>",
+    io_lib:format(Format, Args);
 
 make_request(login, Args) ->
     Format= "<command id='connect'>"
@@ -311,10 +347,97 @@ make_request(server_status, _) ->"<command id='server_status'/>".
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 update_position(Pos=#money_position{}, Positions) ->
-    lists:keystore(money_position, 1, Positions, Pos).
+    lists:keystore(money_position, 1, Positions, Pos);
+
+update_position(NewPos=#sec_position{secid=ID}, Positions) ->
+    case lists:keyfind(ID, 3, Positions) of
+        false           ->
+            error_logger:info_msg("Adding new position: ~p~n", [NewPos]),
+            [NewPos|Positions];
+        OldPos ->
+            List = lists:zip(tl(tuple_to_list(OldPos)), tl(tuple_to_list(NewPos))),
+            Merged = lists:map(fun({X, undefined}) -> X; ({_, X}) -> X end, List),
+            Result = list_to_tuple([sec_position|Merged]),
+            error_logger:info_msg("Old position: ~300p~nUpd position: ~300p~nNew position: ~300p~n", [OldPos, NewPos, Result]),
+            lists:keyreplace(ID, 3, Positions, Result)
+    end.
 
 update_positions(NewPositions, Positions) ->
     lists:foldl(fun(Pos, PosList) -> update_position(Pos, PosList) end, Positions, NewPositions).
+
+update_trade(Trade=#trade{secid=ID}, Trades) ->
+    lists:keystore(ID, 2, Trades, Trade).
+
+update_trades(NewTrades, Trades) ->
+    lists:foldl(fun(Trade, TradeList) -> update_trade(Trade, TradeList) end, Trades, NewTrades).
+
+update_order(NewOrder=#order{transactionid=ID}, Orders) ->
+    case lists:keyfind(ID, 2, Orders) of
+        false             ->
+            error_logger:info_msg("Adding new order: ~p~n", [NewOrder]),
+            [NewOrder|Orders];
+        OldOrder ->
+            List = lists:zip(tl(tuple_to_list(OldOrder)), tl(tuple_to_list(NewOrder))),
+            Merged = lists:map(fun({X, undefined}) -> X; ({_, X}) -> X end, List),
+            Result = list_to_tuple([order|Merged]),
+            error_logger:info_msg("Old order: ~300p~nUpd order: ~300p~nNew order: ~300p~n", [OldOrder, NewOrder, Result]),
+            lists:keyreplace(ID, 2, Orders, Result)
+    end.
+
+update_orders(NewOrders, Orders) ->
+    lists:foldl(fun(Order, OrderList) -> update_order(Order, OrderList) end, Orders, NewOrders).
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+make_record({order, Attributes, Args}) ->
+    #order {
+        transactionid   = get_value(integer, transactionid, Attributes),
+        orderno         = get_value(integer, orderno, Args),
+        secid           = get_value(integer, secid, Args),
+        board           = get_value(board, Args),
+        client          = get_value(client, Args),
+        status          = get_value(status, Args),
+        buysell         = get_value(buysell, Args),
+        time            = get_value(time, Args),
+        accepttime      = get_value(accepttime, Args),
+        brokerref       = get_value(brokerref, Args),
+        value           = get_value(number, value, Args),
+        accruedint      = get_value(number, accruedint, Args),
+        settlecode      = get_value(settlecode, Args),
+        balance         = get_value(integer, balance, Args),
+        price           = get_value(number, price, Args),
+        quantity        = get_value(integer, quantity, Args),
+        yield           = get_value(number, yield, Args),
+        withdrawtime    = get_value(withdrawtime, Args),
+        condition       = get_value(condition, Args),
+        conditionvalue  = get_value(number, conditionvalue, Args),
+        validafter      = get_value(validafter, Args),
+        validbefore     = get_value(validbefore, Args),
+        maxcomission    = get_value(integer, maxcomission, Args),
+        result          = get_value(result, Args)
+    };
+
+make_record({trade, [], Args}) ->
+    #trade{
+        secid       = get_value(integer, secid, Args),
+        tradeno     = get_value(integer, tradeno, Args),
+        orderno     = get_value(integer, orderno, Args),
+        board       = get_value(board, Args),
+        client      = get_value(client, Args),
+        buysell     = get_value(buysell, Args),
+        time        = get_value(time, Args),
+        brokerref   = get_value(brokerref, Args),
+        value       = get_value(number, value, Args),
+        comission   = get_value(number, comission, Args),
+        price       = get_value(number, price, Args),
+        quantity    = get_value(number, quantity, Args),
+        yield       = get_value(number, yield, Args),
+        currentpos  = get_value(number, currentpos, Args),
+        accruedint  = get_value(number, accruedint, Args),
+        tradetype   = get_value(tradetype, Args),
+        settlecode  = get_value(settlecode, Args)
+    };
 
 make_record({money_position, [], Args}) ->
     #money_position{
@@ -328,6 +451,20 @@ make_record({money_position, [], Args}) ->
         ordbuy      = get_value(number, ordbuy, Args),
         ordbuycond  = get_value(number, ordbuycond, Args),
         commission  = get_value(number, commission, Args)
+    };
+
+make_record({sec_position, [], Args}) ->
+    #sec_position{
+        client      = get_value(client, Args),
+        secid       = get_value(integer, secid, Args),
+        shortname   = get_value(shortname, Args),
+        saldoin     = get_value(number, saldoin, Args),
+        saldomin    = get_value(number, saldomin, Args),
+        bought      = get_value(number, bought, Args),
+        sold        = get_value(number, sold, Args),
+        saldo       = get_value(number, saldo, Args),
+        ordbuy      = get_value(number, ordbuy, Args),
+        ordsell     = get_value(number, ordsell, Args)
     };
 
 make_record({market,[{id,ID}],[Name]}) ->
@@ -365,6 +502,9 @@ make_record({security, Attributes, Args}) ->
                 immorcancel     = ImmOrCancel,
                 cancelbalance   = CancelBalance
     }.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 
 get_value(Name, Values) ->
     case lists:keyfind(Name, 1, Values) of
