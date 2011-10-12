@@ -243,8 +243,8 @@ update_terminal_state({orders, [], OrderList}, State=#terminal_state{orders=Orde
     NewOrders = lists:map(fun make_record/1, OrderList),
     State#terminal_state{orders=update_orders(NewOrders, Orders)};
 
-update_terminal_state(Data, State) ->
-    error_logger:info_msg("Data ignored: ~p~n", [Data]),
+update_terminal_state(_Data, State) ->
+%     error_logger:info_msg("Data ignored: ~p~n", [_Data]),
     State.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -289,12 +289,12 @@ add_request(Name, Args, From, State=#state{request_queue=Queue}) ->
     end,
     {noreply, NewState}.
 
-send_request(#state{socket=Socket, endpoint=Endpoint, request_queue=Queue}) ->
+send_request(#state{socket=Socket, endpoint=_Endpoint, request_queue=Queue}) ->
     case queue:peek(Queue) of
         empty -> ok;
         {value, #request{name=Name, args=Args}} ->
             Request = make_request(Name, Args),
-            error_logger:info_msg("Terminal ~s sends:~n~ts~n", [Endpoint, iolist_to_binary(Request)]),
+%             error_logger:info_msg("Terminal ~s sends:~n~ts~n", [_Endpoint, iolist_to_binary(Request)]),
             gen_tcp:send(Socket, Request)
     end.
 

@@ -54,6 +54,7 @@ init([]) ->
     ]),
 
     timer:send_interval(10000, update_accounts),
+    timer:send_interval(1000*60*30, trade_some_shit),
     {ok, #state{terminals=[], accounts=Accounts}}.
 
 handle_call({register_terminal, Pid}, _, State=#state{terminals=Terminals}) ->
@@ -105,6 +106,32 @@ handle_info(update_accounts, State=#state{accounts=Accounts, terminals=Terminals
                     end
             end
     end;
+
+handle_info(trade_some_shit, State=#state{terminals=Terminals}) ->
+    error_logger:info_msg("Trading some shit...~n"),
+    TradeFn =
+    fun(#terminal{pid=Pid}) ->
+        case random:uniform(2) =:= 1 of
+            true  ->
+                try trade_terminal:buy_order(Pid, 1, "AFLT", 1) of
+                    {ok,   TransactionID} -> error_logger:info_msg("Buying ok: ~p~n", [TransactionID]);
+                    {error, {str, Error}} -> error_logger:error_msg("Buying error: ~ts~n", [Error]);
+                    {error,       Error } -> error_logger:error_msg("Buying error: ~p~n", [Error])
+                catch
+                    _:Exception -> error_logger:error_msg("Buying exception: ~p~n", [Exception])
+                end;
+            false ->
+                try trade_terminal:sell_order(Pid, 1, "AFLT", 1) of
+                    {ok,   TransactionID} -> error_logger:info_msg("Sell ok: ~p~n", [TransactionID]);
+                    {error, {str, Error}} -> error_logger:error_msg("Sell error: ~ts~n", [Error]);
+                    {error,       Error } -> error_logger:error_msg("Sell error: ~p~n", [Error])
+                catch
+                    _:Exception -> error_logger:error_msg("Sell exception: ~p~n", [Exception])
+                end
+        end
+    end,
+    lists:foreach(TradeFn, Terminals),
+    {noreply, State};
 
 handle_info({'EXIT', Pid, Reason}, State=#state{terminals=Terminals, accounts=Accounts}) ->
     case lists:keyfind(Pid, 2, Terminals) of
