@@ -110,7 +110,8 @@ handle_info(update_accounts, State=#state{accounts=Accounts, terminals=Terminals
 
 handle_info(trade_some_shit, State=#state{terminals=Terminals}) ->
     TradeFn =
-    fun(#terminal{name=Name, pid=Pid}) ->
+    fun(#terminal{name=undefined}) -> ok;
+       (#terminal{name=Name, pid=Pid}) ->
         error_logger:info_msg("Trading some shit using account '~p'...~n", [Name]),
         case random:uniform(2) =:= 1 of
             true  ->
