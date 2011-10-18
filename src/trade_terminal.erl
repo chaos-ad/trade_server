@@ -250,7 +250,7 @@ update_terminal_state(_Data, State) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 handle_response(_, {result, [{success, "false"}], [{message, [], [Error]}]}) ->
-    error_logger:info_msg("Error: '~ts'~n", [Error]),
+%     error_logger:info_msg("Error: '~ts'~n", [Error]),
     {reply, {error, {str, Error}}};
 
 handle_response(login, {server_status, [{id, _}, {connected, "true"}, {recover, "true"}], _}) ->
@@ -263,7 +263,7 @@ handle_response(login, {server_status, [{id, _}, {connected, "false"}], _}) ->
     {reply, {error, not_connected}};
 
 handle_response(login, {server_status, [{connected, "error"}], [Error]}) ->
-    error_logger:info_msg("Error: '~ts'~n", [Error]),
+%     error_logger:info_msg("Error: '~ts'~n", [Error]),
     {reply, {error, {str, Error}}};
 
 handle_response(logout, {result,[{success,"true"}],[]}) ->
