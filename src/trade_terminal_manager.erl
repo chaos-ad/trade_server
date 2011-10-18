@@ -102,15 +102,16 @@ handle_info(update_accounts, State=#state{accounts=Accounts, terminals=Terminals
                     catch
                         _:Error ->
                             error_logger:info_msg("Terminal ~p: failed to login as ~p: ~p~n", [Pid, Name, Error]),
+                            catch trade_terminal:close(Pid),
                             {noreply, State}
                     end
             end
     end;
 
 handle_info(trade_some_shit, State=#state{terminals=Terminals}) ->
-    error_logger:info_msg("Trading some shit...~n"),
     TradeFn =
-    fun(#terminal{pid=Pid}) ->
+    fun(#terminal{name=Name, pid=Pid}) ->
+        error_logger:info_msg("Trading some shit using account '~p'...~n", [Name]),
         case random:uniform(2) =:= 1 of
             true  ->
                 try trade_terminal:buy_order(Pid, 1, "AFLT", 1) of
@@ -122,11 +123,11 @@ handle_info(trade_some_shit, State=#state{terminals=Terminals}) ->
                 end;
             false ->
                 try trade_terminal:sell_order(Pid, 1, "AFLT", 1) of
-                    {ok,   TransactionID} -> error_logger:info_msg("Sell ok: ~p~n", [TransactionID]);
-                    {error, {str, Error}} -> error_logger:error_msg("Sell error: ~ts~n", [Error]);
-                    {error,       Error } -> error_logger:error_msg("Sell error: ~p~n", [Error])
+                    {ok,   TransactionID} -> error_logger:info_msg("Selling ok: ~p~n", [TransactionID]);
+                    {error, {str, Error}} -> error_logger:error_msg("Selling error: ~ts~n", [Error]);
+                    {error,       Error } -> error_logger:error_msg("Selling error: ~p~n", [Error])
                 catch
-                    _:Exception -> error_logger:error_msg("Sell exception: ~p~n", [Exception])
+                    _:Exception -> error_logger:error_msg("Selling exception: ~p~n", [Exception])
                 end
         end
     end,

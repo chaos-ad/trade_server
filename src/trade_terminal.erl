@@ -85,7 +85,7 @@ send_request(Pid, Request) ->
     send_request(Pid, Request, []).
 
 send_request(Pid, Request, Args) ->
-    send_request(Pid, Request, Args, infinity).
+    send_request(Pid, Request, Args, 5000).
 
 send_request(Pid, Request, Args, Timeout) ->
     gen_server:call(Pid, {request, Request, Args}, Timeout).
@@ -250,6 +250,7 @@ update_terminal_state(_Data, State) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 handle_response(_, {result, [{success, "false"}], [{message, [], [Error]}]}) ->
+    error_logger:info_msg("Error: '~ts'~n", [Error]),
     {reply, {error, {str, Error}}};
 
 handle_response(login, {server_status, [{id, _}, {connected, "true"}, {recover, "true"}], _}) ->
@@ -262,13 +263,14 @@ handle_response(login, {server_status, [{id, _}, {connected, "false"}], _}) ->
     {reply, {error, not_connected}};
 
 handle_response(login, {server_status, [{connected, "error"}], [Error]}) ->
+    error_logger:info_msg("Error: '~ts'~n", [Error]),
     {reply, {error, {str, Error}}};
 
 handle_response(logout, {result,[{success,"true"}],[]}) ->
     {reply, ok};
 
 handle_response(neworder, {result,[{success,"true"},{transactionid,ID}],[]}) ->
-    {reply, list_to_integer(ID)};
+    {reply, {ok, list_to_integer(ID)}};
 
 handle_response(cancelorder, {result, [{success, "true"}], _}) ->
     {reply, ok};
@@ -352,13 +354,13 @@ update_position(Pos=#money_position{}, Positions) ->
 update_position(NewPos=#sec_position{secid=ID}, Positions) ->
     case lists:keyfind(ID, 3, Positions) of
         false           ->
-            error_logger:info_msg("Adding new position: ~p~n", [NewPos]),
+%             error_logger:info_msg("Adding new position: ~p~n", [NewPos]),
             [NewPos|Positions];
         OldPos ->
             List = lists:zip(tl(tuple_to_list(OldPos)), tl(tuple_to_list(NewPos))),
             Merged = lists:map(fun({X, undefined}) -> X; ({_, X}) -> X end, List),
             Result = list_to_tuple([sec_position|Merged]),
-            error_logger:info_msg("Old position: ~300p~nUpd position: ~300p~nNew position: ~300p~n", [OldPos, NewPos, Result]),
+%             error_logger:info_msg("Old position: ~300p~nUpd position: ~300p~nNew position: ~300p~n", [OldPos, NewPos, Result]),
             lists:keyreplace(ID, 3, Positions, Result)
     end.
 
@@ -374,13 +376,13 @@ update_trades(NewTrades, Trades) ->
 update_order(NewOrder=#order{transactionid=ID}, Orders) ->
     case lists:keyfind(ID, 2, Orders) of
         false             ->
-            error_logger:info_msg("Adding new order: ~p~n", [NewOrder]),
+%             error_logger:info_msg("Adding new order: ~p~n", [NewOrder]),
             [NewOrder|Orders];
         OldOrder ->
             List = lists:zip(tl(tuple_to_list(OldOrder)), tl(tuple_to_list(NewOrder))),
             Merged = lists:map(fun({X, undefined}) -> X; ({_, X}) -> X end, List),
             Result = list_to_tuple([order|Merged]),
-            error_logger:info_msg("Old order: ~300p~nUpd order: ~300p~nNew order: ~300p~n", [OldOrder, NewOrder, Result]),
+%             error_logger:info_msg("Old order: ~300p~nUpd order: ~300p~nNew order: ~300p~n", [OldOrder, NewOrder, Result]),
             lists:keyreplace(ID, 2, Orders, Result)
     end.
 
@@ -510,6 +512,7 @@ get_value(Name, Values) ->
     case lists:keyfind(Name, 1, Values) of
         false               -> undefined;
         {Name, Value}       -> Value;
+        {Name, [], []}      -> undefined;
         {Name, [], [Value]} -> Value;
         {Name, [], [Value1, Value2]} -> Value1 ++ Value2;
         Other               -> Other
