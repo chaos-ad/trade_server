@@ -4,6 +4,8 @@
 
 main(_) ->
     Host = list_to_atom("tradesrv@" ++ net_adm:localhost()),
-    pong = net_adm:ping(Host),
-    rpc:call(Host, init, stop, []).
+    io:format("Stopping daemon: "),
+    Res = rpc:call(Host, init, stop, []),
+    io:format("~p~n", [Res]).
+
 
