@@ -99,7 +99,7 @@ init([]) ->
 
 handle_call({set_socket, Socket}, _, State=#state{}) ->
     Peername = trade_utils:peername(Socket),
-    error_logger:info_msg("New terminal accepted: ~s~n", [Peername]),
+    lager:info("New terminal accepted: ~s~n", [Peername]),
     ok = inet:setopts(Socket, ?SOCKET_OPTIONS),
     ok = trade_terminal_manager:register_terminal(self()),
     {reply, ok, State#state{socket=Socket, endpoint=Peername}};
@@ -125,31 +125,31 @@ handle_call(get_terminal_state, _, State=#state{terminal=Terminal}) ->
     {reply, Terminal, State};
 
 handle_call(Something, _, State=#state{endpoint=Endpoint}) ->
-    error_logger:info_msg("Terminal ~s receives unexpected call: ~p~n", [Endpoint, Something]),
+    lager:info("Terminal ~s receives unexpected call: ~p~n", [Endpoint, Something]),
     {noreply, State}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 handle_cast(Something, State=#state{endpoint=Endpoint}) ->
-    error_logger:info_msg("Terminal ~s receives unexpected cast: ~p~n", [Endpoint, Something]),
+    lager:info("Terminal ~s receives unexpected cast: ~p~n", [Endpoint, Something]),
     {noreply, State}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 handle_info({tcp, Socket, Data}, State=#state{socket=Socket, endpoint=_Endpoint}) ->
-%     error_logger:info_msg("Terminal ~s receives:~n~ts~n", [_Endpoint, Data]),
+%     lager:info("Terminal ~s receives:~n~ts~n", [_Endpoint, Data]),
     {noreply, handle_data(parse(Data), State)};
 
 handle_info({tcp_error, Socket, Error}, State=#state{socket=Socket, endpoint=Endpoint}) ->
-    error_logger:info_msg("Terminal ~s closed: ~p~n", [Endpoint, Error]),
+    lager:info("Terminal ~s closed: ~p~n", [Endpoint, Error]),
     {stop, {shutdown, {error, Error}}, State};
 
 handle_info({tcp_closed, Socket}, State=#state{socket=Socket, endpoint=Endpoint}) ->
-    error_logger:info_msg("Terminal ~s closed~n", [Endpoint]),
+    lager:info("Terminal ~s closed~n", [Endpoint]),
     {stop, {shutdown, tcp_closed}, State};
 
 handle_info(Something, State=#state{endpoint=Endpoint}) ->
-    error_logger:info_msg("Terminal ~s receives unexpected info: ~p~n", [Endpoint, Something]),
+    lager:info("Terminal ~s receives unexpected info: ~p~n", [Endpoint, Something]),
     {noreply, State}.
 
 code_change(_, State, _) ->
@@ -162,7 +162,7 @@ terminate(Reason, #state{request_queue=Queue}) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 handle_data(Data, State=#state{endpoint=_Endpoint, terminal=Terminal, request_queue=Queue}) ->
-%     error_logger:info_msg("Terminal ~s receives:~n~p~n", [_Endpoint, Data]),
+%     lager:info("Terminal ~s receives:~n~p~n", [_Endpoint, Data]),
     NewTerminal = update_terminal_state(Data, Terminal),
     NewState    = State#state{terminal=NewTerminal},
     case queue:peek(Queue) of
@@ -244,13 +244,13 @@ update_terminal_state({orders, [], OrderList}, State=#terminal_state{orders=Orde
     State#terminal_state{orders=update_orders(NewOrders, Orders)};
 
 update_terminal_state(_Data, State) ->
-%     error_logger:info_msg("Data ignored: ~p~n", [_Data]),
+%     lager:info("Data ignored: ~p~n", [_Data]),
     State.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 handle_response(_, {result, [{success, "false"}], [{message, [], [Error]}]}) ->
-%     error_logger:info_msg("Error: '~ts'~n", [Error]),
+%     lager:info("Error: '~ts'~n", [Error]),
     {reply, {error, {str, Error}}};
 
 handle_response(login, {server_status, [{id, _}, {connected, "true"}, {recover, "true"}], _}) ->
@@ -263,7 +263,7 @@ handle_response(login, {server_status, [{id, _}, {connected, "false"}], _}) ->
     {reply, {error, not_connected}};
 
 handle_response(login, {server_status, [{connected, "error"}], [Error]}) ->
-%     error_logger:info_msg("Error: '~ts'~n", [Error]),
+%     lager:info("Error: '~ts'~n", [Error]),
     {reply, {error, {str, Error}}};
 
 handle_response(logout, {result,[{success,"true"}],[]}) ->
@@ -276,7 +276,7 @@ handle_response(cancelorder, {result, [{success, "true"}], _}) ->
     {reply, ok};
 
 handle_response(_Op, _Data) ->
-%     error_logger:info_msg("Operation: ~p, skipped data: ~p~n", [_Op, _Data]),
+%     lager:info("Operation: ~p, skipped data: ~p~n", [_Op, _Data]),
     noreply.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -296,7 +296,7 @@ send_request(#state{socket=Socket, endpoint=_Endpoint, request_queue=Queue}) ->
         empty -> ok;
         {value, #request{name=Name, args=Args}} ->
             Request = make_request(Name, Args),
-%             error_logger:info_msg("Terminal ~s sends:~n~ts~n", [_Endpoint, iolist_to_binary(Request)]),
+%             lager:info("Terminal ~s sends:~n~ts~n", [_Endpoint, iolist_to_binary(Request)]),
             gen_tcp:send(Socket, Request)
     end.
 
@@ -354,13 +354,13 @@ update_position(Pos=#money_position{}, Positions) ->
 update_position(NewPos=#sec_position{secid=ID}, Positions) ->
     case lists:keyfind(ID, 3, Positions) of
         false           ->
-%             error_logger:info_msg("Adding new position: ~p~n", [NewPos]),
+%             lager:info("Adding new position: ~p~n", [NewPos]),
             [NewPos|Positions];
         OldPos ->
             List = lists:zip(tl(tuple_to_list(OldPos)), tl(tuple_to_list(NewPos))),
             Merged = lists:map(fun({X, undefined}) -> X; ({_, X}) -> X end, List),
             Result = list_to_tuple([sec_position|Merged]),
-%             error_logger:info_msg("Old position: ~300p~nUpd position: ~300p~nNew position: ~300p~n", [OldPos, NewPos, Result]),
+%             lager:info("Old position: ~300p~nUpd position: ~300p~nNew position: ~300p~n", [OldPos, NewPos, Result]),
             lists:keyreplace(ID, 3, Positions, Result)
     end.
 
@@ -376,13 +376,13 @@ update_trades(NewTrades, Trades) ->
 update_order(NewOrder=#order{transactionid=ID}, Orders) ->
     case lists:keyfind(ID, 2, Orders) of
         false             ->
-%             error_logger:info_msg("Adding new order: ~p~n", [NewOrder]),
+%             lager:info("Adding new order: ~p~n", [NewOrder]),
             [NewOrder|Orders];
         OldOrder ->
             List = lists:zip(tl(tuple_to_list(OldOrder)), tl(tuple_to_list(NewOrder))),
             Merged = lists:map(fun({X, undefined}) -> X; ({_, X}) -> X end, List),
             Result = list_to_tuple([order|Merged]),
-%             error_logger:info_msg("Old order: ~300p~nUpd order: ~300p~nNew order: ~300p~n", [OldOrder, NewOrder, Result]),
+%             lager:info("Old order: ~300p~nUpd order: ~300p~nNew order: ~300p~n", [OldOrder, NewOrder, Result]),
             lists:keyreplace(ID, 2, Orders, Result)
     end.
 

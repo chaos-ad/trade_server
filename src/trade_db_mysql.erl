@@ -54,7 +54,7 @@ init([]) ->
     Pass = proplists:get_value(pass, Options, "trade"),
     Name = proplists:get_value(name, Options, "trade"),
 
-    error_logger:info_msg("connecting to database ~s:~B...~n", [Host, Port]),
+    lager:info("connecting to database ~s:~B...~n", [Host, Port]),
     ok = emysql:add_pool(?MODULE, 1, User, Pass, Host, Port, Name, utf8),
     ok = init_database(),
     {ok, undefined}.
@@ -105,7 +105,7 @@ code_change(_, State, _) -> {ok, State}.
 
 terminate(Reason, _State) ->
     emysql:remove_pool(?MODULE),
-    error_logger:info_msg("terminated with reason ~p", [Reason]),
+    lager:info("terminated with reason ~p", [Reason]),
     ok.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -163,14 +163,14 @@ get_bars(Symbol, Period, From, To) when is_tuple(From), is_tuple(To) ->
     Query = "SELECT * FROM ~s WHERE Timestamp >= ~B AND Timestamp <= ~B",
     QueryBin = iolist_to_binary(io_lib:format(Query, [TableName, to_unixtime(From), to_unixtime(To)])),
 
-    error_logger:info_msg("Starting query...~n"),
+    lager:info("Starting query...~n"),
     {T1, QRes} = timer:tc( fun() -> execute(QueryBin) end ),
     case QRes of
         R when is_record(R, result_packet) ->
-            error_logger:info_msg("Query takes ~B...~n", [T1]),
-            error_logger:info_msg("Parsing bars...~n"),
+            lager:info("Query takes ~B...~n", [T1]),
+            lager:info("Parsing bars...~n"),
             {T2, Result} = timer:tc(fun() -> lists:map(fun parse_bar/1, R#result_packet.rows) end),
-            error_logger:info_msg("Parsing takes ~B...~n", [T2]),
+            lager:info("Parsing takes ~B...~n", [T2]),
             Result;
         R when is_record(R, error_packet)  ->
             case R#error_packet.code =:= ?TABLE_DOES_NOT_EXISTS of
@@ -186,7 +186,7 @@ execute(Query) ->
     try emysql:execute(?MODULE, Query, 1000*60)
     catch
         exit:connection_lock_timeout ->
-            error_logger:info_msg("connection lock timed out, retrying query", []),
+            lager:info("connection lock timed out, retrying query", []),
             execute(Query);
         exit:Err -> {error, Err}
     end.

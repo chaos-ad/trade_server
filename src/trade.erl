@@ -1,36 +1,28 @@
 -module(trade).
 
--export([start/0, stop/0]).
+-export([start/0]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 start() ->
-    application:load(?MODULE),
-    ensure_deps_started(),
-    application:start(?MODULE).
+    start(trade).
 
-stop() ->
-    application:stop(?MODULE),
-    ensure_deps_stopped().
+start(App) ->
+    start_ok(App, application:start(App, permanent)).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-ensure_started(App) ->
-    case application:start(App) of
-        ok                              -> ok;
-        {error, {already_started, App}} -> ok
-    end.
+start_ok(_, ok) ->
+    ok;
 
-ensure_stopped(App) ->
-    case application:stop(App) of
-        ok                              -> ok;
-        {error, E}                      -> io:format("Error: ~p~n", [E])
-    end.
+start_ok(_, {error, {already_started, _App}}) ->
+    ok;
 
-ensure_deps_started() ->
-    {ok, DepsList} = application:get_key(?MODULE, applications),
-    lists:foreach( fun ensure_started/1, DepsList ).
+start_ok(App, {error, {not_started, Dep}}) when App =/= Dep ->
+    ok = start(Dep),
+    start(App);
 
-ensure_deps_stopped() ->
-    {ok, DepsList} = application:get_key(?MODULE, applications),
-    lists:foreach( fun ensure_stopped/1, DepsList ).
+start_ok(App, {error, Reason}) ->
+    erlang:error({app_start_failed, App, Reason}).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

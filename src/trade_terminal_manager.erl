@@ -39,18 +39,27 @@ del_account(Name) ->
     gen_server:call(?SERVER, {del_account, Name}).
 
 init([]) ->
+    lager:info("Initializing terminal manager..."),
     process_flag(trap_exit, true),
-    {ok, Opts} = application:get_env(terminals),
+    {ok, Opts} = application:get_env(terminal_manager),
     Accounts   = to_accounts(proplists:get_value(accounts, Opts)),
-    AcceptHost = proplists:get_value(accept_host, Opts),
-    AcceptPort = proplists:get_value(accept_port, Opts),
+    Host       = proplists:get_value(host, Opts),
+    Port       = proplists:get_value(port, Opts),
 
-    error_logger:info_msg("accepting terminal connections at ~s:~B~n", [AcceptHost, AcceptPort]),
+    lager:info("Accepting terminal connections at ~s:~B~n", [Host, Port]),
     mochiweb_socket_server:start([
-        {ip, AcceptHost},
-        {port, AcceptPort},
+        {ip, Host},
+        {port, Port},
         {name, trade_terminal_acceptor},
-        {loop, fun(Socket) -> trade_terminal:start(Socket) end}
+        {loop, fun(Socket) -> trade_terminal:start(Socket) end},
+        {ssl, true},
+        {ssl_opts, [
+            {keyfile, proplists:get_value(keyfile, Opts)},
+            {certfile, proplists:get_value(certfile, Opts)},
+            {cacertfile, proplists:get_value(cacertfile, Opts)},
+            {verify, verify_peer},
+            {fail_if_no_peer_cert, true}
+        ]}
     ]),
 
     timer:send_interval(10000, update_accounts),
@@ -85,23 +94,23 @@ handle_info(update_accounts, State=#state{accounts=Accounts, terminals=Terminals
                 false ->
                     {noreply, State};
                 T=#terminal{pid=Pid} ->
-                    error_logger:info_msg("Terminal ~p: logging as ~p...~n", [Pid, Name]),
+                    lager:info("Terminal ~p: logging as ~p...~n", [Pid, Name]),
                     try trade_terminal:login(Pid, Login, Pass, Host, Port) of
                         {error, {str, Error}} ->
-                            error_logger:info_msg("Terminal ~p: failed to login as ~p: ~ts~n", [Pid, Name, Error]),
+                            lager:info("Terminal ~p: failed to login as ~p: ~ts~n", [Pid, Name, Error]),
                             {noreply, State};
                         {error, Error} ->
-                            error_logger:info_msg("Terminal ~p: failed to login as ~p: ~p~n", [Pid, Name, Error]),
+                            lager:info("Terminal ~p: failed to login as ~p: ~p~n", [Pid, Name, Error]),
                             {noreply, State};
                         ok ->
                             true = register(Name, Pid),
-                            error_logger:info_msg("Terminal ~p: logged as ~p~n", [Pid, Name]),
+                            lager:info("Terminal ~p: logged as ~p~n", [Pid, Name]),
                             NewAccounts  = lists:keyreplace(false, 7, Accounts, A#account{logged=true}),
                             NewTerminals = lists:keyreplace(undefined, 3, Terminals, T#terminal{name=Name}),
                             {noreply, State#state{accounts=NewAccounts, terminals=NewTerminals}}
                     catch
                         _:Error ->
-                            error_logger:info_msg("Terminal ~p: failed to login as ~p: ~p~n", [Pid, Name, Error]),
+                            lager:info("Terminal ~p: failed to login as ~p: ~p~n", [Pid, Name, Error]),
                             catch trade_terminal:close(Pid),
                             {noreply, State}
                     end
@@ -112,23 +121,23 @@ handle_info(trade_some_shit, State=#state{terminals=Terminals}) ->
     TradeFn =
     fun(#terminal{name=undefined}) -> ok;
        (#terminal{name=Name, pid=Pid}) ->
-        error_logger:info_msg("Trading some shit using account '~p'...~n", [Name]),
+        lager:info("Trading some shit using account '~p'...~n", [Name]),
         case random:uniform(2) =:= 1 of
             true  ->
                 try trade_terminal:buy_order(Pid, 1, "AFLT", 1) of
-                    {ok,   TransactionID} -> error_logger:info_msg("Buying ok: ~p~n", [TransactionID]);
-                    {error, {str, Error}} -> error_logger:error_msg("Buying error: ~ts~n", [Error]);
-                    {error,       Error } -> error_logger:error_msg("Buying error: ~p~n", [Error])
+                    {ok,   TransactionID} -> lager:info("Buying ok: ~p~n", [TransactionID]);
+                    {error, {str, Error}} -> lager:error("Buying error: ~ts~n", [Error]);
+                    {error,       Error } -> lager:error("Buying error: ~p~n", [Error])
                 catch
-                    _:Exception -> error_logger:error_msg("Buying exception: ~p~n", [Exception])
+                    _:Exception -> lager:error("Buying exception: ~p~n", [Exception])
                 end;
             false ->
                 try trade_terminal:sell_order(Pid, 1, "AFLT", 1) of
-                    {ok,   TransactionID} -> error_logger:info_msg("Selling ok: ~p~n", [TransactionID]);
-                    {error, {str, Error}} -> error_logger:error_msg("Selling error: ~ts~n", [Error]);
-                    {error,       Error } -> error_logger:error_msg("Selling error: ~p~n", [Error])
+                    {ok,   TransactionID} -> lager:info("Selling ok: ~p~n", [TransactionID]);
+                    {error, {str, Error}} -> lager:error("Selling error: ~ts~n", [Error]);
+                    {error,       Error } -> lager:error("Selling error: ~p~n", [Error])
                 catch
-                    _:Exception -> error_logger:error_msg("Selling exception: ~p~n", [Exception])
+                    _:Exception -> lager:error("Selling exception: ~p~n", [Exception])
                 end
         end
     end,
@@ -143,10 +152,10 @@ handle_info({'EXIT', Pid, Reason}, State=#state{terminals=Terminals, accounts=Ac
             NewState = State#state{terminals=NewTerminals},
             case Name of
                 undefined ->
-                    error_logger:info_msg("Terminal ~p: logged off: ~p~n", [Pid, Reason]),
+                    lager:info("Terminal ~p: logged off: ~p~n", [Pid, Reason]),
                     {noreply, NewState};
                 _         ->
-                    error_logger:info_msg("Terminal ~p: logged off as ~p: ~p~n", [Pid, Name, Reason]),
+                    lager:info("Terminal ~p: logged off as ~p: ~p~n", [Pid, Name, Reason]),
                     case lists:keyfind(Name, 2, Accounts) of
                         false   -> {noreply, NewState};
                         Account ->
@@ -161,7 +170,7 @@ handle_info(_, State) -> {noreply, State}.
 code_changed(_, State, _) -> {noreply, State}.
 
 terminate(_, _) ->
-    error_logger:info_msg("Stopping socket acceptor...~n"),
+    lager:info("Stopping socket acceptor...~n"),
     mochiweb_socket_server:stop(trade_terminal_acceptor).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

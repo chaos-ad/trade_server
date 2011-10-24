@@ -9,7 +9,8 @@
                   inets,
                   crypto,
                   emysql,
-                  mnesia
+                  mnesia,
+                  lager
                  ]},
   {mod, { trade_app, []}},
   {env, []}

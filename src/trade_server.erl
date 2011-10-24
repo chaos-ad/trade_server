@@ -34,23 +34,23 @@ init(server) ->
     {ok, Host}    = application:get_env(host),
     {ok, Port}    = application:get_env(port),
     ServerOptions = [{name, undefined}, {port, Port}, {ip, Host}, {loop, {?MODULE, start_client}}],
-    error_logger:info_msg("accepting connections at ~s:~B~n", [Host, Port]),
+    lager:info("accepting connections at ~s:~B~n", [Host, Port]),
     {ok, _} = mochiweb_socket_server:start_link(ServerOptions),
     {ok, undefined};
 
 init({client, Socket}) ->
     Peername = trade_utils:peername(Socket),
-    error_logger:info_msg("socket accepted: ~s~n", [Peername]),
+    lager:info("socket accepted: ~s~n", [Peername]),
     {ok, #state{socket=Socket, peername=Peername}}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 handle_call(Data, _, State) ->
-    error_logger:info_msg("call: ~p~n", [Data]),
+    lager:info("call: ~p~n", [Data]),
     {noreply, State}.
 
 handle_cast(Data, State) ->
-    error_logger:info_msg("cast: ~p~n", [Data]),
+    lager:info("cast: ~p~n", [Data]),
     {noreply, State}.
 
 handle_info({tcp, Socket, Data}, State=#state{socket=Socket}) ->
@@ -62,11 +62,11 @@ handle_info({tcp, Socket, Data}, State=#state{socket=Socket}) ->
     inet:setopts(Socket,[{active,once}, {packet, 4}]), Result;
 
 handle_info({tcp_closed, Socket}, State=#state{socket=Socket, peername=Peername}) ->
-    error_logger:info_msg("socket closed: ~s~n", [Peername]),
+    lager:info("socket closed: ~s~n", [Peername]),
     {stop, normal, State};
 
 handle_info(Data, State) ->
-    error_logger:info_msg("info: ~p~n", [Data]),
+    lager:info("info: ~p~n", [Data]),
     {noreply, State}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -79,7 +79,7 @@ terminate(_, _) -> ok.
 handle_command({get_history, Symbol, Period, From, To}, State) ->
     History = trade_history:get_history(Symbol, Period, From, To),
     Args = [Symbol, Period, trade_utils:to_datestr(From), trade_utils:to_datestr(To), length(History)],
-    error_logger:info_msg("Getting history for ~s (~B): ~s - ~s: ~B ticks", Args),
+    lager:info("Getting history for ~s (~B): ~s - ~s: ~B ticks", Args),
     {reply, pack_history(History), State}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

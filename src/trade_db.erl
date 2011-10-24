@@ -75,7 +75,9 @@ del_range(Symbol, Period) ->
 
 init([]) ->
     process_flag(trap_exit, true),
+    lager:info("Starting database..."),
     ok = mnesia:wait_for_tables([symbol, range], 30000),
+    lager:info("Database started"),
     {ok, undefined}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -119,7 +121,7 @@ handle_info(_, State) -> {noreply, State}.
 code_change(_, State, _) -> {ok, State}.
 
 terminate(Reason, _State) ->
-    error_logger:info_msg("terminated with reason ~p~n", [Reason]),
+    lager:info("terminated with reason ~p~n", [Reason]),
     ok.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -149,7 +151,7 @@ find_symbol_info(Code) when is_binary(Code) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 put_bars(Symbol, Period, Bars) when is_list(Bars) ->
-    error_logger:info_msg("importing ~B bars...~n", [length(Bars)]),
+    lager:info("importing ~B bars...~n", [length(Bars)]),
     Tab = get_tablename(Symbol, Period),
     ok = create_table(Tab),
     PutFn = fun({Time, Open, High, Low, Close, Volume}) ->
