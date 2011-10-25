@@ -65,10 +65,7 @@ get_trades(Pid) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 login(Pid, Login, Pass, Host, Port) ->
-    send_request(Pid, login, [Login, Pass, Host, Port]).
-
-test_login(Pid) ->
-    login(Pid, "TCNN9956", "VYDYD8", "195.128.78.60", 3939).
+    send_request(Pid, login, [Login, Pass, Host, Port], 10000).
 
 logout(Pid) ->
     send_request(Pid, logout).
@@ -140,17 +137,17 @@ handle_cast(Something, State=#state{endpoint=Endpoint}) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-handle_info({tcp, Socket, Data}, State=#state{socket=Socket, endpoint=_Endpoint}) ->
+handle_info({ssl, Socket, Data}, State=#state{socket=Socket, endpoint=_Endpoint}) ->
 %     lager:info("Terminal ~s receives:~n~ts~n", [_Endpoint, Data]),
     {noreply, handle_data(parse(Data), State)};
 
-handle_info({tcp_error, Socket, Error}, State=#state{socket=Socket, endpoint=Endpoint}) ->
+handle_info({ssl_error, Socket, Error}, State=#state{socket=Socket, endpoint=Endpoint}) ->
     lager:info("Terminal ~s closed: ~p~n", [Endpoint, Error]),
     {stop, {shutdown, {error, Error}}, State};
 
-handle_info({tcp_closed, Socket}, State=#state{socket=Socket, endpoint=Endpoint}) ->
+handle_info({ssl_closed, Socket}, State=#state{socket=Socket, endpoint=Endpoint}) ->
     lager:info("Terminal ~s closed~n", [Endpoint]),
-    {stop, {shutdown, tcp_closed}, State};
+    {stop, {shutdown, ssl_closed}, State};
 
 handle_info(Something, State=#state{endpoint=Endpoint}) ->
     lager:info("Terminal ~s receives unexpected info: ~p~n", [Endpoint, Something]),
