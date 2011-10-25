@@ -27,9 +27,12 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-start(Socket) ->
+start({ssl, Socket}) ->
+    {ok, {IP, Port}} = ssl:peername(Socket),
+    lager:debug("Socket accepted: ~s:~B~n", [inet_parse:ntoa(IP), Port]),
+
     {ok, Pid} = gen_server:start(?MODULE, [], []),
-    ok = gen_tcp:controlling_process(Socket, Pid),
+    ok = ssl:controlling_process(Socket, Pid),
     ok = gen_server:call(Pid, {set_socket, Socket}),
     {ok, Pid}.
 
@@ -98,10 +101,11 @@ init([]) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 handle_call({set_socket, Socket}, _, State=#state{}) ->
-    Peername = trade_utils:peername(Socket),
-    lager:info("New terminal accepted: ~s~n", [Peername]),
-    ok = inet:setopts(Socket, ?SOCKET_OPTIONS),
+    {ok, {IP, Port}} = ssl:peername(Socket),
+    Peername = inet_parse:ntoa(IP) ++ ":" ++ integer_to_list(Port),
+    ok = ssl:setopts(Socket, ?SOCKET_OPTIONS),
     ok = trade_terminal_manager:register_terminal(self()),
+    lager:info("New terminal registered: ~s~n", [Peername]),
     {reply, ok, State#state{socket=Socket, endpoint=Peername}};
 
 handle_call({request, neworder, [Mode, Market, Security, Amount]}, From, State=#state{terminal=Terminal}) ->
@@ -118,7 +122,7 @@ handle_call({request, Name, Args}, From, State) ->
     add_request(Name, Args, From, State);
 
 handle_call(close, _, State=#state{socket=Socket}) ->
-    gen_tcp:close(Socket),
+    ssl:close(Socket),
     {stop, normal, ok, State};
 
 handle_call(get_terminal_state, _, State=#state{terminal=Terminal}) ->
@@ -297,7 +301,7 @@ send_request(#state{socket=Socket, endpoint=_Endpoint, request_queue=Queue}) ->
         {value, #request{name=Name, args=Args}} ->
             Request = make_request(Name, Args),
 %             lager:info("Terminal ~s sends:~n~ts~n", [_Endpoint, iolist_to_binary(Request)]),
-            gen_tcp:send(Socket, Request)
+            ssl:send(Socket, Request)
     end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

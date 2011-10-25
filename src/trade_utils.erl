@@ -2,18 +2,6 @@
 -compile(export_all).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-peername({{A, B, C, D}, Port}) -> %% IPv4 only
-    io_lib:format("~p.~p.~p.~p:~p", [A, B, C, D, Port]);
-
-peername({IP, Port}) -> % Will fail on versions, prior to R14B02
-    inet_parse:ntoa(IP) ++ ":" ++ integer_to_list(Port);
-
-peername(Socket) ->
-    {ok, Peername} = inet:peername(Socket),
-    peername(Peername).
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% TickInfo : {Symbol, Period, Time, Open, High, TickInfoow, Close, Vol}
 
 time(TickInfo) when is_list(TickInfo) -> lists:map(fun time/1, TickInfo);
