@@ -19,15 +19,16 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -record(request, {name, args, from}).
--record(state,   {socket, endpoint, request_queue=queue:new(), terminal = #terminal_state{}}).
+-record(state,   {socket, request_queue=queue:new(), terminal = #terminal_state{}}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+-define(ACQUIRE_ACCOUNT_TIMEOUT, 1000*10).
 -define(SOCKET_OPTIONS, [binary, {packet, 4}, {active, true}, {nodelay, true}, {reuseaddr, true}, {keepalive, true}]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-start_link(Socket) ->
+start({ssl, Socket}) ->
     {ok, Pid} = gen_server:start_link(?MODULE, [], []),
     ok = ssl:controlling_process(Socket, Pid),
     ok = gen_server:call(Pid, {set_socket, Socket}),
@@ -94,11 +95,12 @@ init([]) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-handle_call({set_socket, Socket}, _, State=#state{}) ->
+handle_call({set_socket, Socket}, _, State) ->
     {ok, {IP, Port}} = ssl:peername(Socket),
-    Peername = inet_parse:ntoa(IP) ++ ":" ++ integer_to_list(Port),
+    lager:debug("Terminal ~p started: ~s:~B", [self(), inet_parse:ntoa(IP), Port]),
     ok = ssl:setopts(Socket, ?SOCKET_OPTIONS),
-    {reply, ok, State#state{socket=Socket, endpoint=Peername}};
+    ok = gen_server:cast(self(), acquire_account),
+    {reply, ok, State#state{socket=Socket}};
 
 handle_call({request, neworder, [Mode, Market, Security, Amount]}, From, State=#state{terminal=Terminal}) ->
     try
@@ -120,45 +122,57 @@ handle_call(close, _, State=#state{socket=Socket}) ->
 handle_call(get_terminal_state, _, State=#state{terminal=Terminal}) ->
     {reply, Terminal, State};
 
-handle_call(Something, _, State=#state{endpoint=Endpoint}) ->
-    lager:info("Terminal ~s receives unexpected call: ~p", [Endpoint, Something]),
+handle_call(Something, _, State) ->
+    lager:debug("Terminal ~p receives unexpected call: ~p", [self(), Something]),
     {noreply, State}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-handle_cast(Something, State=#state{endpoint=Endpoint}) ->
-    lager:info("Terminal ~s receives unexpected cast: ~p", [Endpoint, Something]),
+handle_cast(acquire_account, State) ->
+    lager:debug("Terminal ~p: acquiring account...", [self()]),
+    case trade_terminal_manager:acquire_account() of
+        {ok, {Name, {Login, Pass, Host, Port}}} ->
+            lager:info("Terminal ~p: logging as '~p'...", [self(), Name]),
+            add_request(login, [Login, Pass, Host, Port], undefined, State);
+        Response ->
+            lager:debug("Terminal ~p: failed to acquire account: ~p", [self(), Response]),
+            timer:apply_after(?ACQUIRE_ACCOUNT_TIMEOUT, gen_server, cast, [self(), acquire_account]),
+            {noreply, State}
+    end;
+
+handle_cast(Something, State) ->
+    lager:debug("Terminal ~p receives unexpected cast: ~p", [self(), Something]),
     {noreply, State}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-handle_info({ssl, Socket, Data}, State=#state{socket=Socket, endpoint=_Endpoint}) ->
-%     lager:info("Terminal ~s receives:~n~ts", [_Endpoint, Data]),
+handle_info({ssl, Socket, Data}, State=#state{socket=Socket}) ->
+%     lager:debug("Terminal ~p receives:~n~ts", [self(), Data]),
     {noreply, handle_data(parse(Data), State)};
 
-handle_info({ssl_error, Socket, Error}, State=#state{socket=Socket, endpoint=Endpoint}) ->
-    lager:info("Terminal ~s closed: ~p", [Endpoint, Error]),
+handle_info({ssl_error, Socket, Error}, State=#state{socket=Socket}) ->
+    lager:debug("Terminal ~p: closed with reason ~p", [self(), Error]),
     {stop, {shutdown, {error, Error}}, State};
 
-handle_info({ssl_closed, Socket}, State=#state{socket=Socket, endpoint=Endpoint}) ->
-    lager:info("Terminal ~s closed", [Endpoint]),
+handle_info({ssl_closed, Socket}, State=#state{socket=Socket}) ->
+    lager:debug("Terminal ~p: closed", [self()]),
     {stop, {shutdown, ssl_closed}, State};
 
-handle_info(Something, State=#state{endpoint=Endpoint}) ->
-    lager:info("Terminal ~s receives unexpected info: ~p", [Endpoint, Something]),
+handle_info(Something, State) ->
+    lager:debug("Terminal ~p receives unexpected info: ~p", [self(), Something]),
     {noreply, State}.
 
 code_change(_, State, _) ->
     {ok, State}.
 
 terminate(Reason, #state{request_queue=Queue}) ->
-    Fun = fun(#request{from=From}) -> gen_server:reply(From, {error, Reason}) end,
+    Fun = fun(#request{from=From}) -> send_reply(From, {error, Reason}) end,
     lists:foreach( Fun, queue:to_list(Queue) ).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-handle_data(Data, State=#state{endpoint=_Endpoint, terminal=Terminal, request_queue=Queue}) ->
-%     lager:info("Terminal ~s receives:~n~p", [_Endpoint, Data]),
+handle_data(Data, State=#state{terminal=Terminal, request_queue=Queue}) ->
+%     lager:debug("Terminal ~p receives:~n~p", [self(), Data]),
     NewTerminal = update_terminal_state(Data, Terminal),
     NewState    = State#state{terminal=NewTerminal},
     case queue:peek(Queue) of
@@ -167,7 +181,7 @@ handle_data(Data, State=#state{endpoint=_Endpoint, terminal=Terminal, request_qu
             case handle_response(Name, Data) of
                 noreply -> NewState;
                 {reply, Reply} ->
-                    gen_server:reply(From, Reply),
+                    send_reply(From, Reply),
                     NewState2 = NewState#state{request_queue=queue:drop(Queue)},
                     ok = send_request(NewState2),
                     NewState2
@@ -180,15 +194,21 @@ update_terminal_state({result,[{success,_}],[]}, State=#terminal_state{}) ->
     State; %% Ignoring result
 
 update_terminal_state({server_status, [{id, ID}, {connected, "true"}, {recover, "true"}], _}, State=#terminal_state{}) ->
+    trade_terminal_manager:set_terminal_state(recovering),
     State#terminal_state{server_status=#server_status{id=list_to_integer(ID), connected=true, recover=true}};
 
 update_terminal_state({server_status, [{id, ID}, {connected, "true"}], _}, State=#terminal_state{}) ->
+    trade_terminal_manager:set_terminal_state(connected),
     State#terminal_state{server_status=#server_status{id=list_to_integer(ID), connected=true}};
 
 update_terminal_state({server_status, [{id, ID}, {connected, "false"}], _}, State=#terminal_state{}) ->
+    trade_terminal_manager:release_account(),
+    timer:apply_after(?ACQUIRE_ACCOUNT_TIMEOUT, gen_server, cast, [self(), acquire_account]),
     State#terminal_state{server_status=#server_status{id=list_to_integer(ID), connected=false}};
 
 update_terminal_state({server_status, [{connected, "error"}], _}, State=#terminal_state{}) ->
+    trade_terminal_manager:release_account(),
+    timer:apply_after(?ACQUIRE_ACCOUNT_TIMEOUT, gen_server, cast, [self(), acquire_account]),
     State#terminal_state{server_status=#server_status{connected=false}};
 
 update_terminal_state({client, [{id,ID},{remove,"true"}], []}, State=#terminal_state{clients=Clients}) ->
@@ -240,26 +260,28 @@ update_terminal_state({orders, [], OrderList}, State=#terminal_state{orders=Orde
     State#terminal_state{orders=update_orders(NewOrders, Orders)};
 
 update_terminal_state(_Data, State) ->
-%     lager:info("Data ignored: ~p", [_Data]),
+%     lager:debug("Data ignored: ~p", [_Data]),
     State.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 handle_response(_, {result, [{success, "false"}], [{message, [], [Error]}]}) ->
-%     lager:info("Error: '~ts'", [Error]),
+%     lager:debug("Error: '~ts'", [Error]),
     {reply, {error, {str, Error}}};
 
 handle_response(login, {server_status, [{id, _}, {connected, "true"}, {recover, "true"}], _}) ->
     {reply, {error, recover}};
 
 handle_response(login, {server_status, [{id, _}, {connected, "true"}], _}) ->
+    lager:info("Terminal ~p: logged", [self()]),
     {reply, ok};
 
 handle_response(login, {server_status, [{id, _}, {connected, "false"}], _}) ->
+    lager:error("Terminal ~p: login failed", [self()]),
     {reply, {error, not_connected}};
 
 handle_response(login, {server_status, [{connected, "error"}], [Error]}) ->
-%     lager:info("Error: '~ts'", [Error]),
+    lager:error("Terminal ~p: login failed with error: '~ts'", [self(), Error]),
     {reply, {error, {str, Error}}};
 
 handle_response(logout, {result,[{success,"true"}],[]}) ->
@@ -287,14 +309,18 @@ add_request(Name, Args, From, State=#state{request_queue=Queue}) ->
     end,
     {noreply, NewState}.
 
-send_request(#state{socket=Socket, endpoint=_Endpoint, request_queue=Queue}) ->
+send_request(#state{socket=Socket, request_queue=Queue}) ->
     case queue:peek(Queue) of
         empty -> ok;
         {value, #request{name=Name, args=Args}} ->
             Request = make_request(Name, Args),
-%             lager:info("Terminal ~s sends:~n~ts", [_Endpoint, iolist_to_binary(Request)]),
+%             lager:debug("Terminal ~p sends:~n~ts", [self(), iolist_to_binary(Request)]),
             ssl:send(Socket, Request)
     end.
+
+
+send_reply(undefined, _) -> ok;
+send_reply(To, Reply) -> gen_server:reply(To, Reply).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -350,13 +376,13 @@ update_position(Pos=#money_position{}, Positions) ->
 update_position(NewPos=#sec_position{secid=ID}, Positions) ->
     case lists:keyfind(ID, 3, Positions) of
         false           ->
-%             lager:info("Adding new position: ~p", [NewPos]),
+%             lager:debug("Adding new position: ~p", [NewPos]),
             [NewPos|Positions];
         OldPos ->
             List = lists:zip(tl(tuple_to_list(OldPos)), tl(tuple_to_list(NewPos))),
             Merged = lists:map(fun({X, undefined}) -> X; ({_, X}) -> X end, List),
             Result = list_to_tuple([sec_position|Merged]),
-%             lager:info("Old position: ~300p~nUpd position: ~300p~nNew position: ~300p", [OldPos, NewPos, Result]),
+%             lager:debug("Old position: ~300p~nUpd position: ~300p~nNew position: ~300p", [OldPos, NewPos, Result]),
             lists:keyreplace(ID, 3, Positions, Result)
     end.
 
@@ -372,13 +398,13 @@ update_trades(NewTrades, Trades) ->
 update_order(NewOrder=#order{transactionid=ID}, Orders) ->
     case lists:keyfind(ID, 2, Orders) of
         false             ->
-%             lager:info("Adding new order: ~p", [NewOrder]),
+%             lager:debug("Adding new order: ~p", [NewOrder]),
             [NewOrder|Orders];
         OldOrder ->
             List = lists:zip(tl(tuple_to_list(OldOrder)), tl(tuple_to_list(NewOrder))),
             Merged = lists:map(fun({X, undefined}) -> X; ({_, X}) -> X end, List),
             Result = list_to_tuple([order|Merged]),
-%             lager:info("Old order: ~300p~nUpd order: ~300p~nNew order: ~300p", [OldOrder, NewOrder, Result]),
+%             lager:debug("Old order: ~300p~nUpd order: ~300p~nNew order: ~300p", [OldOrder, NewOrder, Result]),
             lists:keyreplace(ID, 2, Orders, Result)
     end.
 
