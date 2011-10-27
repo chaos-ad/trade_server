@@ -6,52 +6,52 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--define(SERVER, {global, ?MODULE}).
--define(UPDATE_TIME, 5000).
+% -define(UPDATE_TIME, 5000).
+-define(SERVER, global:whereis_name(?MODULE)).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--record(terminal, {pid, name}).
--record(account,  {name, login, pass, host, port, logged=false}).
--record(state,    {terminals=[], accounts=[]}).
+% -record(terminal, {pid, name}}
+% -record(account,  {name, login, pass, host, port}).
+-record(state, {logged_accounts=[], logged_terminals=[], free_accounts=[], free_terminals=[]}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 start_link() ->
-    gen_server:start_link(?SERVER, ?MODULE, [], []).
+    gen_server:start_link({global, ?MODULE}, ?MODULE, [], []).
 
-% find_terminal(What) ->
-%     gen_server:call(?SERVER, {find_terminal, What}).
+find_terminal(What) ->
+    gen_server:call(?SERVER, {find_terminal, What}).
 
-register_terminal(Socket) ->
-    gen_server:call(?SERVER, {register_terminal, Socket}).
+accept_terminal(Socket) ->
+    gen_server:call(?SERVER, {accept_terminal, Socket}).
 
-get_terminals() ->
-    gen_server:call(?SERVER, get_terminals).
+get_accounts(Mode) ->
+    gen_server:call(?SERVER, {get_accounts, Mode}).
 
-get_accounts() ->
-    gen_server:call(?SERVER, get_accounts).
+get_terminals(Mode) ->
+    gen_server:call(?SERVER, {get_terminals, Mode}).
 
-add_account(Account) ->
-    gen_server:call(?SERVER, {add_account, Account}).
+add_account(AccountInfo) ->
+    gen_server:call(?SERVER, {add_account, AccountInfo}).
 
-del_account(Name) ->
-    gen_server:call(?SERVER, {del_account, Name}).
+% del_account(AccountName) ->
+%     gen_server:call(?SERVER, {del_account, AccountName}).
 
 init([]) ->
     lager:info("Initializing terminal manager..."),
     process_flag(trap_exit, true),
     {ok, Opts} = application:get_env(terminal_manager),
-    Accounts   = to_accounts(proplists:get_value(accounts, Opts)),
+    Accounts   = proplists:get_value(accounts, Opts),
     Host       = proplists:get_value(host, Opts),
     Port       = proplists:get_value(port, Opts),
 
-    lager:info("Accepting terminal connections at ~s:~B~n", [Host, Port]),
+    lager:info("Accepting terminal connections at ~s:~B", [Host, Port]),
     mochiweb_socket_server:start([
         {ip, Host},
         {port, Port},
         {name, trade_terminal_acceptor},
-        {loop, fun(Socket) -> trade_terminal:start(Socket) end},
+        {loop, fun(Socket) -> ?MODULE:accept_terminal(Socket) end},
         {ssl, true},
         {ssl_opts, [
             {keyfile, proplists:get_value(keyfile, Opts)},
@@ -62,130 +62,177 @@ init([]) ->
         ]}
     ]),
 
-    timer:send_interval(10000, update_accounts),
-    timer:send_interval(1000*60*30, trade_some_shit),
-    {ok, #state{terminals=[], accounts=Accounts}}.
+    timer:send_interval(10000, update_terminals),
 
-handle_call({register_terminal, Pid}, _, State=#state{terminals=Terminals}) ->
-    link(Pid),
-    {reply, ok, State#state{terminals=[#terminal{pid=Pid, name=undefined}|Terminals]}};
+    {ok, #state{free_accounts=Accounts}}.
 
-handle_call(get_terminals, _, State=#state{terminals=Terminals}) ->
-    {reply, Terminals, State};
+handle_call({accept_terminal, {ssl, Socket}}, _, State=#state{free_terminals=FreeTerminals}) ->
+    {ok, {IP, Port}} = ssl:peername(Socket),
+    lager:debug("Socket accepted: ~s:~B", [inet_parse:ntoa(IP), Port]),
+    {ok, Terminal} = trade_terminal:start_link(Socket),
+    {reply, ok, State#state{free_terminals=[{undefined, Terminal}|FreeTerminals]}};
 
-handle_call(get_accounts, _, State=#state{accounts=Accounts}) ->
-    {reply, lists:map(fun(Acc) -> from_account(Acc) end, Accounts), State};
+handle_call({get_terminals, Mode}, _, State) ->
+    {reply, get_accounts(Mode, State), State};
 
-handle_call({add_account, Account}, _, State=#state{accounts=Accounts}) ->
-    {reply, ok, State#state{accounts=[to_account(Account)|Accounts]}};
+handle_call({get_accounts, Mode}, _, State) ->
+    {reply, get_accounts(Mode, State), State};
 
-handle_call({del_account, Name}, _, State=#state{accounts=Accounts}) ->
-    {reply, ok, State#state{accounts=lists:keydelete(Name, 2, Accounts)}};
+handle_call({add_account, Account}, _, State) ->
+    {reply, ok, add_account(free, Account, State)};
+
+handle_call({find_terminal, {Where, What}}, _, State) ->
+    {reply, find_terminal(Where, What, State), State};
+
+handle_call({terminal_logged_in, Terminal, Account}, _, S0) ->
+    true = register(element(1, Terminal), element(2, Terminal)),
+    S1 = add_account(logged, Account, S0),
+    S2 = add_terminal(logged, Terminal, S1),
+    {reply, ok, S2};
+
+handle_call({terminal_logged_out, Terminal, Account}, _, S0) ->
+    true = unregister(element(1, Terminal)),
+    S1 = del_account(logged, Account, S0),
+    S2 = del_terminal(logged, Terminal, S1),
+    S3 = add_account(free, Account, S2),
+    S4 = add_terminal(free, Terminal, S3),
+    {reply, ok, S4};
+
+handle_call({terminal_login_failed, Terminal, Account, Error}, _, S0) ->
+    print_error(Terminal, Account, Error),
+    case Error of
+        {fatal, _} ->
+            catch trade_terminal:close(Terminal),
+            S1 = add_account(free, Account, S0),
+            {reply, ok, S1};
+        {retry, _} ->
+            S1 = add_account(free, Account, S0),
+            S2 = add_terminal(free, Terminal, S1),
+            {reply, ok, S2}
+    end;
 
 handle_call(_, _, State) -> {reply, {error, invalid_request}, State}.
 handle_cast(_, State) -> {noreply, State}.
 
-handle_info(update_accounts, State=#state{accounts=Accounts, terminals=Terminals}) ->
-    case lists:keyfind(false, 7, Accounts) of
-        false ->
-            {noreply, State};
-        A=#account{name=Name, login=Login, pass=Pass, host=Host, port=Port} ->
-            case lists:keyfind(undefined, 3, Terminals) of
-                false ->
-                    {noreply, State};
-                T=#terminal{pid=Pid} ->
-                    lager:info("Terminal ~p: logging as ~p...~n", [Pid, Name]),
-                    try trade_terminal:login(Pid, Login, Pass, Host, Port) of
-                        {error, {str, Error}} ->
-                            lager:info("Terminal ~p: failed to login as ~p: ~ts~n", [Pid, Name, Error]),
-                            {noreply, State};
-                        {error, Error} ->
-                            lager:info("Terminal ~p: failed to login as ~p: ~p~n", [Pid, Name, Error]),
-                            {noreply, State};
-                        ok ->
-                            true = register(Name, Pid),
-                            lager:info("Terminal ~p: logged as ~p~n", [Pid, Name]),
-                            NewAccounts  = lists:keyreplace(false, 7, Accounts, A#account{logged=true}),
-                            NewTerminals = lists:keyreplace(undefined, 3, Terminals, T#terminal{name=Name}),
-                            {noreply, State#state{accounts=NewAccounts, terminals=NewTerminals}}
-                    catch
-                        _:Error ->
-                            lager:info("Terminal ~p: failed to login as ~p: ~p~n", [Pid, Name, Error]),
-                            catch trade_terminal:close(Pid),
-                            {noreply, State}
-                    end
-            end
-    end;
+handle_info(update_terminals, S0=#state{free_accounts=[]}) -> {noreply, S0};
+handle_info(update_terminals, S0=#state{free_terminals=[]}) -> {noreply, S0};
+handle_info(update_terminals, S0=#state{free_accounts=FreeAccounts, free_terminals=FreeTerminals}) ->
+    Account = lists:nth(random:uniform(length(FreeAccounts)), FreeAccounts),
+    Terminal = lists:nth(random:uniform(length(FreeTerminals)), FreeTerminals),
+    start_async_login(Terminal, Account),
+    S1 = del_account(free, {name, element(1, Account)}, S0),
+    S2 = del_terminal(free, {pid, element(2, Terminal)}, S1),
+    {noreply, S2};
 
-handle_info(trade_some_shit, State=#state{terminals=Terminals}) ->
-    TradeFn =
-    fun(#terminal{name=undefined}) -> ok;
-       (#terminal{name=Name, pid=Pid}) ->
-        lager:info("Trading some shit using account '~p'...~n", [Name]),
-        case random:uniform(2) =:= 1 of
-            true  ->
-                try trade_terminal:buy_order(Pid, 1, "AFLT", 1) of
-                    {ok,   TransactionID} -> lager:info("Buying ok: ~p~n", [TransactionID]);
-                    {error, {str, Error}} -> lager:error("Buying error: ~ts~n", [Error]);
-                    {error,       Error } -> lager:error("Buying error: ~p~n", [Error])
-                catch
-                    _:Exception -> lager:error("Buying exception: ~p~n", [Exception])
-                end;
-            false ->
-                try trade_terminal:sell_order(Pid, 1, "AFLT", 1) of
-                    {ok,   TransactionID} -> lager:info("Selling ok: ~p~n", [TransactionID]);
-                    {error, {str, Error}} -> lager:error("Selling error: ~ts~n", [Error]);
-                    {error,       Error } -> lager:error("Selling error: ~p~n", [Error])
-                catch
-                    _:Exception -> lager:error("Selling exception: ~p~n", [Exception])
-                end
-        end
-    end,
-    lists:foreach(TradeFn, Terminals),
-    {noreply, State};
-
-handle_info({'EXIT', Pid, Reason}, State=#state{terminals=Terminals, accounts=Accounts}) ->
-    case lists:keyfind(Pid, 2, Terminals) of
-        false                -> {noreply, State};
-        #terminal{name=Name} ->
-            NewTerminals = lists:keydelete(Pid, 2, Terminals),
-            NewState = State#state{terminals=NewTerminals},
-            case Name of
+handle_info({'EXIT', Pid, Reason}, S0) ->
+    case find_terminal(logged, {pid, Pid}, S0) of
+        undefined ->
+            case find_terminal(free, {pid, Pid}, S0) of
                 undefined ->
-                    lager:info("Terminal ~p: logged off: ~p~n", [Pid, Reason]),
-                    {noreply, NewState};
-                _         ->
-                    lager:info("Terminal ~p: logged off as ~p: ~p~n", [Pid, Name, Reason]),
-                    case lists:keyfind(Name, 2, Accounts) of
-                        false   -> {noreply, NewState};
-                        Account ->
-                            NewAccounts = lists:keyreplace(Name, 2, Accounts, Account#account{logged=false}),
-                            {noreply, NewState#state{accounts=NewAccounts}}
-                    end
-            end
+                    lager:warning("Unexpected exit signal received from pid ~p", [Pid]),
+                    {noreply, S0};
+                _ ->
+                    lager:info("Terminal ~p disconnected: ~p", [Pid, Reason]),
+                    {noreply, del_terminal(free, {pid, Pid}, S0)}
+            end;
+        {Name, Pid} ->
+            Account = find_account(logged, {name, Name}, S0),
+            case Account =:= undefined of
+                true  -> erlang:error(internal_error);
+                false -> ok
+            end,
+            S1 = add_account(free, Account, S0),
+            S2 = del_account(logged, {name, Name}, S1),
+            S3 = del_terminal(logged, {name, Name}, S2),
+            lager:info("Terminal ~p (logged as '~p'), disconnected: ~p", [Pid, Name, Reason]),
+            {noreply, S3}
     end;
 
 handle_info(_, State) -> {noreply, State}.
 
 code_changed(_, State, _) -> {noreply, State}.
 
-terminate(_, _) ->
-    lager:info("Stopping socket acceptor...~n"),
+terminate(Reason, _) ->
+    lager:info("Stopping terminal manager with reason: ~p", [Reason]),
     mochiweb_socket_server:stop(trade_terminal_acceptor).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-login_terminal(#terminal{pid=Pid}, #account{login=Login, pass=Pass, host=Host, port=Port, logged=false}) ->
-    trade_terminal:login(Pid, Login, Pass, Host, Port).
+print_error(Terminal, {Name, _}, {retry, {str, Error}}) ->
+    lager:info("Terminal ~p: error during login as '~p': ~ts", [Terminal, Name, Error]);
+print_error(Terminal, {Name, _}, {retry, Error}) ->
+    lager:info("Terminal ~p: error during login as '~p': ~p", [Terminal, Name, Error]);
+print_error(Terminal, {Name, _}, {fatal, {str, Error}}) ->
+    lager:info("Terminal ~p: fatal error during login as '~p': ~ts", [Terminal, Name, Error]);
+print_error(Terminal, {Name, _}, {fatal, Error}) ->
+    lager:info("Terminal ~p: fatal error during login as '~p': ~p", [Terminal, Name, Error]).
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-to_accounts(List) when is_list(List) ->
-    lists:map(fun to_account/1, List).
+get_accounts(free, #state{free_accounts=Result}) -> Result;
+get_accounts(logged, #state{logged_accounts=Result}) -> Result.
 
-to_account({Name, Login, Pass, Host, Port}) ->
-    #account{name=Name, login=Login, pass=Pass, host=Host, port=Port}.
+set_accounts(free, Accounts, State) -> State#state{free_accounts=Accounts};
+set_accounts(logged, Accounts, State) -> State#state{logged_accounts=Accounts}.
 
-from_account(#account{name=Name, login=Login, pass=Pass, host=Host, port=Port}) ->
-    {Name, Login, Pass, Host, Port}.
+add_account(Mode, Account, State) ->
+    set_accounts(Mode, [Account|get_accounts(Mode, State)], State).
+del_account(Mode, {name, Name}, State) ->
+    set_accounts(Mode, lists:keydelete(Name, 1, get_accounts(Mode, State)), State);
+del_account(Mode, {Name, _}, State) ->
+    del_account(Mode, {name, Name}, State).
 
+find_result(false) -> undefined;
+find_result(Other) -> Other.
 
+find_account(Mode, {name, Name}, State) ->
+    find_result( lists:keyfind(Name, 1, get_accounts(Mode, State)) ).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+get_terminals(free, #state{free_terminals=Result}) -> Result;
+get_terminals(logged, #state{logged_terminals=Result}) -> Result.
+
+set_terminals(free, Terminals, State) -> State#state{free_terminals=Terminals};
+set_terminals(logged, Terminals, State) -> State#state{logged_terminals=Terminals}.
+
+add_terminal(Mode, {Pid, Name}, State) ->
+    set_terminals(Mode, [{Pid, Name}|get_terminals(Mode, State)], State).
+
+del_terminal(Mode, {pid, Pid}, State) ->
+    set_terminals(Mode, lists:keydelete(Pid, 2, get_terminals(Mode, State)), State);
+del_terminal(Mode, {name, Name}, State) ->
+    set_terminals(Mode, lists:keydelete(Name, 1, get_terminals(Mode, State)), State);
+del_terminal(Mode, {_, Pid}, State) ->
+    del_terminal(Mode, {pid, Pid}, State).
+
+find_terminal(Mode, {pid, Name}, State) ->
+    find_result( lists:keyfind(Name, 2, get_terminals(Mode, State)) );
+find_terminal(Mode, {name, Name}, State) ->
+    find_result( lists:keyfind(Name, 1, get_terminals(Mode, State)) ).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+start_async_login(Terminal, {Name, Credentials}) ->
+    lager:info("Terminal ~p: logging as '~p'...", [element(2, Terminal), Name]),
+    spawn(fun() -> do_login(Terminal, {Name, Credentials}) end),
+    ok.
+
+do_login(Terminal, Account) ->
+    {_, TerminalPid} = Terminal,
+    {Name, {Login, Passwd, Host, Port}} = Account,
+    try trade_terminal:login(TerminalPid, Login, Passwd, Host, Port) of
+        ok                    ->
+            lager:info("Terminal ~p: logging result: ~p", [TerminalPid, ok]),
+            ok = gen_server:call(?SERVER, {terminal_logged_in, {Name, TerminalPid}, Account});
+        {error, {str, Error}} ->
+            lager:info("Terminal ~p: logging result: ~p", [TerminalPid, {error, {str, Error}}]),
+            ok = gen_server:call(?SERVER, {terminal_login_failed, Terminal, Account, {retry, Error}});
+        {error, Error}        ->
+            lager:info("Terminal ~p: logging result: ~p", [TerminalPid, {error, Error}]),
+            ok = gen_server:call(?SERVER, {terminal_login_failed, Terminal, Account, {fatal, Error}})
+    catch
+        _:Exception    ->
+            lager:info("Terminal ~p: logging exception: ~p", [TerminalPid, {error, Exception}]),
+            ok = gen_server:call(?SERVER, {terminal_login_failed, Terminal, Account, {fatal, Exception}})
+    end.

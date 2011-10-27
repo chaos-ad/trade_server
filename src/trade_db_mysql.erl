@@ -54,7 +54,7 @@ init([]) ->
     Pass = proplists:get_value(pass, Options, "trade"),
     Name = proplists:get_value(name, Options, "trade"),
 
-    lager:info("connecting to database ~s:~B...~n", [Host, Port]),
+    lager:info("connecting to database ~s:~B...", [Host, Port]),
     ok = emysql:add_pool(?MODULE, 1, User, Pass, Host, Port, Name, utf8),
     ok = init_database(),
     {ok, undefined}.
@@ -163,14 +163,14 @@ get_bars(Symbol, Period, From, To) when is_tuple(From), is_tuple(To) ->
     Query = "SELECT * FROM ~s WHERE Timestamp >= ~B AND Timestamp <= ~B",
     QueryBin = iolist_to_binary(io_lib:format(Query, [TableName, to_unixtime(From), to_unixtime(To)])),
 
-    lager:info("Starting query...~n"),
+    lager:info("Starting query..."),
     {T1, QRes} = timer:tc( fun() -> execute(QueryBin) end ),
     case QRes of
         R when is_record(R, result_packet) ->
-            lager:info("Query takes ~B...~n", [T1]),
-            lager:info("Parsing bars...~n"),
+            lager:info("Query takes ~B...", [T1]),
+            lager:info("Parsing bars..."),
             {T2, Result} = timer:tc(fun() -> lists:map(fun parse_bar/1, R#result_packet.rows) end),
-            lager:info("Parsing takes ~B...~n", [T2]),
+            lager:info("Parsing takes ~B...", [T2]),
             Result;
         R when is_record(R, error_packet)  ->
             case R#error_packet.code =:= ?TABLE_DOES_NOT_EXISTS of

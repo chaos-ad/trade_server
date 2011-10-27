@@ -25,10 +25,10 @@ download_history(Symbol, Period, From, To) ->
 download_history_simple(Symbol, Period, From, To) ->
     T2 = trade_utils:to_datestr(To),
     T1 = trade_utils:to_datestr(From),
-    lager:info("downloading history for symbol '~s' and period ~B in range of [~s, ~s]...~n", [Symbol, Period, T1, T2]),
+    lager:info("downloading history for symbol '~s' and period ~B in range of [~s, ~s]...", [Symbol, Period, T1, T2]),
     {ok, {{_, 200, _}, _, Body}} = httpc:request(make_url(Symbol, Period, From, To)),
     Result = parse_history(Body),
-    lager:info("downloaded ~B bars~n", [length(Result)]),
+    lager:info("downloaded ~B bars", [length(Result)]),
     Result.
 
 make_time_parts(From, To) ->

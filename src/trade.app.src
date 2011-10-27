@@ -2,7 +2,7 @@
  [
   {description, ""},
   {vsn, "1"},
-  {registered, [trade_transaq_srv]},
+  {registered, [trade_db, trade_history, trade_terminal_manager]},
   {applications, [
                   kernel,
                   stdlib,

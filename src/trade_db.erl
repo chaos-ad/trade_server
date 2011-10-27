@@ -121,7 +121,7 @@ handle_info(_, State) -> {noreply, State}.
 code_change(_, State, _) -> {ok, State}.
 
 terminate(Reason, _State) ->
-    lager:info("terminated with reason ~p~n", [Reason]),
+    lager:info("terminated with reason ~p", [Reason]),
     ok.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -151,7 +151,7 @@ find_symbol_info(Code) when is_binary(Code) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 put_bars(Symbol, Period, Bars) when is_list(Bars) ->
-    lager:info("importing ~B bars...~n", [length(Bars)]),
+    lager:info("importing ~B bars...", [length(Bars)]),
     Tab = get_tablename(Symbol, Period),
     ok = create_table(Tab),
     PutFn = fun({Time, Open, High, Low, Close, Volume}) ->

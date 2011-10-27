@@ -34,23 +34,23 @@ init(server) ->
     {ok, Host}    = application:get_env(host),
     {ok, Port}    = application:get_env(port),
     ServerOptions = [{name, undefined}, {port, Port}, {ip, Host}, {loop, {?MODULE, start_client}}],
-    lager:info("accepting connections at ~s:~B~n", [Host, Port]),
+    lager:info("accepting connections at ~s:~B", [Host, Port]),
     {ok, _} = mochiweb_socket_server:start_link(ServerOptions),
     {ok, undefined};
 
 init({client, Socket}) ->
     Peername = trade_utils:peername(Socket),
-    lager:info("socket accepted: ~s~n", [Peername]),
+    lager:info("socket accepted: ~s", [Peername]),
     {ok, #state{socket=Socket, peername=Peername}}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 handle_call(Data, _, State) ->
-    lager:info("call: ~p~n", [Data]),
+    lager:info("call: ~p", [Data]),
     {noreply, State}.
 
 handle_cast(Data, State) ->
-    lager:info("cast: ~p~n", [Data]),
+    lager:info("cast: ~p", [Data]),
     {noreply, State}.
 
 handle_info({tcp, Socket, Data}, State=#state{socket=Socket}) ->
@@ -62,11 +62,11 @@ handle_info({tcp, Socket, Data}, State=#state{socket=Socket}) ->
     inet:setopts(Socket,[{active,once}, {packet, 4}]), Result;
 
 handle_info({tcp_closed, Socket}, State=#state{socket=Socket, peername=Peername}) ->
-    lager:info("socket closed: ~s~n", [Peername]),
+    lager:info("socket closed: ~s", [Peername]),
     {stop, normal, State};
 
 handle_info(Data, State) ->
-    lager:info("info: ~p~n", [Data]),
+    lager:info("info: ~p", [Data]),
     {noreply, State}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
