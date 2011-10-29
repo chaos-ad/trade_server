@@ -1,9 +1,6 @@
 -module(trade_terminal_manager).
 -compile(export_all).
 
-%% TODO: Сделать очередь аккаунтов
-%%
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -define(SERVER, {global, ?MODULE}).
@@ -13,7 +10,7 @@
 -define(NAME,     2).
 -define(OPTIONS,  3).
 -define(TERMINAL, 4).
--define(STATE,   5).
+-define(STATE,    5).
 -record(account, {name, options, terminal=undefined, state=undefined}).
 -record(state, {accounts}).
 
@@ -38,8 +35,8 @@ set_terminal_state(TerminalState) ->
     gen_server:call(?SERVER, {set_terminal_state, TerminalState}).
 
 init([]) ->
-    lager:info("Initializing terminal manager..."),
     process_flag(trap_exit, true),
+    lager:info("Initializing terminal manager..."),
     {ok, Opts}  = application:get_env(terminal_manager),
     AccountList = proplists:get_value(accounts, Opts),
     Host        = proplists:get_value(host, Opts),
@@ -90,7 +87,7 @@ handle_call(acquire_account, {Pid, _}, State=#state{accounts=Accounts}) ->
             true = register(Name, Pid),
             NewAccount  = Account#account{terminal=Pid},
             NewAccounts = lists:keyreplace(Name, ?NAME, Accounts, NewAccount),
-            lager:debug("Terminal ~p acquires account '~p'", [Pid, Name]),
+            lager:debug("Account '~p' was acquired by terminal ~p", [Name, Pid]),
             {reply, {ok, {Name, Options}}, State#state{accounts=NewAccounts}}
     end;
 
@@ -103,7 +100,7 @@ handle_call(release_account, {Pid, _}, State=#state{accounts=Accounts}) ->
             catch unregister(Name),
             NewAccount  = Account#account{terminal=undefined, state=undefined},
             NewAccounts = lists:keyreplace(Name, ?NAME, Accounts, NewAccount),
-            lager:debug("Terminal ~p releases account '~p'", [Pid, Name]),
+            lager:debug("Account '~p' was released by terminal ~p", [Name, Pid]),
             {reply, ok, State#state{accounts=NewAccounts}}
     end;
 
@@ -114,7 +111,7 @@ handle_call({set_terminal_state, TerminalState}, {Pid, _}, State=#state{accounts
         Account=#account{name=Name} ->
             NewAccount  = Account#account{state=TerminalState},
             NewAccounts = lists:keyreplace(Name, ?NAME, Accounts, NewAccount),
-            lager:info("Terminal ~p becomes ~p", [Pid, TerminalState]),
+            lager:debug("Terminal ~p becomes ~p", [Pid, TerminalState]),
             {reply, ok, State#state{accounts=NewAccounts}}
     end;
 

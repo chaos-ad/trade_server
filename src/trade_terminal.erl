@@ -18,12 +18,15 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--record(request, {name, args, from}).
--record(state,   {socket, request_queue=queue:new(), terminal = #terminal_state{}}).
+-record(request, {name, args, callback}).
+-record(accinfo, {name, login, pass, host, port, attempts=1}).
+-record(state,   {socket, accinfo, request_queue=queue:new(), terminal = #terminal_state{}}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--define(ACQUIRE_ACCOUNT_TIMEOUT, 1000*10).
+-define(LOGIN_ATTEMPTS, 10).
+-define(LOGIN_TIMEOUT, 1000*60).
+-define(ACQUIRE_ACCOUNT_TIMEOUT, 1000*60*5).
 -define(SOCKET_OPTIONS, [binary, {packet, 4}, {active, true}, {nodelay, true}, {reuseaddr, true}, {keepalive, true}]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -97,7 +100,7 @@ init([]) ->
 
 handle_call({set_socket, Socket}, _, State) ->
     {ok, {IP, Port}} = ssl:peername(Socket),
-    lager:debug("Terminal ~p started: ~s:~B", [self(), inet_parse:ntoa(IP), Port]),
+    lager:info("Connection ~s:~B accepted as terminal ~p", [inet_parse:ntoa(IP), Port, self()]),
     ok = ssl:setopts(Socket, ?SOCKET_OPTIONS),
     ok = gen_server:cast(self(), acquire_account),
     {reply, ok, State#state{socket=Socket}};
@@ -106,14 +109,14 @@ handle_call({request, neworder, [Mode, Market, Security, Amount]}, From, State=#
     try
         ClientID   = get_client_id(Terminal),
         SecurityID = get_security_id(Market, Security, Terminal),
-        add_request(neworder, [Mode, SecurityID, ClientID, Amount], From, State)
+        {noreply, add_request(neworder, [Mode, SecurityID, ClientID, Amount], reply_to(From), State)}
     catch
         _:Error ->
             {reply, {error, Error}, State}
     end;
 
 handle_call({request, Name, Args}, From, State) ->
-    add_request(Name, Args, From, State);
+    {noreply, add_request(Name, Args, reply_to(From), State)};
 
 handle_call(close, _, State=#state{socket=Socket}) ->
     ssl:close(Socket),
@@ -129,16 +132,25 @@ handle_call(Something, _, State) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 handle_cast(acquire_account, State) ->
-    lager:debug("Terminal ~p: acquiring account...", [self()]),
+%     lager:debug("Terminal ~p: acquiring account...", [self()]),
     case trade_terminal_manager:acquire_account() of
         {ok, {Name, {Login, Pass, Host, Port}}} ->
-            lager:info("Terminal ~p: logging as '~p'...", [self(), Name]),
-            add_request(login, [Login, Pass, Host, Port], undefined, State);
-        Response ->
-            lager:debug("Terminal ~p: failed to acquire account: ~p", [self(), Response]),
+            gen_server:cast(self(), perform_login),
+%             lager:debug("Terminal ~p: account ~p acquired", [self(), Name]),
+            AccInfo = #accinfo{name=Name, login=Login, pass=Pass, host=Host, port=Port},
+            {noreply, State#state{accinfo=AccInfo}};
+        _Response ->
+%             lager:debug("Terminal ~p: account acquiring failed: ~p", [self(), _Response]),
             timer:apply_after(?ACQUIRE_ACCOUNT_TIMEOUT, gen_server, cast, [self(), acquire_account]),
             {noreply, State}
     end;
+
+handle_cast(perform_login, State=#state{accinfo=AccInfo}) ->
+    #accinfo{name=Name, login=Login, pass=Pass, host=Host, port=Port, attempts=Attempts} = AccInfo,
+    lager:info("Terminal ~p: logging as '~p', attempt #~B...", [self(), Name, Attempts]),
+    NewState = add_request(login, [Login, Pass, Host, Port], fun handle_login/2, State),
+    {noreply, NewState#state{accinfo=AccInfo#accinfo{attempts=Attempts+1}}};
+
 
 handle_cast(Something, State) ->
     lager:debug("Terminal ~p receives unexpected cast: ~p", [self(), Something]),
@@ -166,7 +178,7 @@ code_change(_, State, _) ->
     {ok, State}.
 
 terminate(Reason, #state{request_queue=Queue}) ->
-    Fun = fun(#request{from=From}) -> send_reply(From, {error, Reason}) end,
+    Fun = fun(#request{callback=Callback}) -> erlang:apply(Callback, {error, {stop, Reason}}) end,
     lists:foreach( Fun, queue:to_list(Queue) ).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -174,15 +186,16 @@ terminate(Reason, #state{request_queue=Queue}) ->
 handle_data(Data, State=#state{terminal=Terminal, request_queue=Queue}) ->
 %     lager:debug("Terminal ~p receives:~n~p", [self(), Data]),
     NewTerminal = update_terminal_state(Data, Terminal),
-    NewState    = State#state{terminal=NewTerminal},
-    case queue:peek(Queue) of
-        empty -> NewState;
-        {value, #request{name=Name, from=From}} ->
-            case handle_response(Name, Data) of
-                noreply -> NewState;
+    case queue:out(Queue) of
+        {empty, Queue} ->
+            State#state{terminal=NewTerminal};
+        {{value, Request}, NewQueue} ->
+            case handle_response(Request#request.name, Data) of
+                noreply ->
+                    State#state{terminal=NewTerminal};
                 {reply, Reply} ->
-                    send_reply(From, Reply),
-                    NewState2 = NewState#state{request_queue=queue:drop(Queue)},
+                    NewState1 = State#state{terminal=NewTerminal, request_queue=NewQueue},
+                    NewState2 = erlang:apply(Request#request.callback, [Reply, NewState1]),
                     ok = send_request(NewState2),
                     NewState2
             end
@@ -202,13 +215,11 @@ update_terminal_state({server_status, [{id, ID}, {connected, "true"}], _}, State
     State#terminal_state{server_status=#server_status{id=list_to_integer(ID), connected=true}};
 
 update_terminal_state({server_status, [{id, ID}, {connected, "false"}], _}, State=#terminal_state{}) ->
-    trade_terminal_manager:release_account(),
-    timer:apply_after(?ACQUIRE_ACCOUNT_TIMEOUT, gen_server, cast, [self(), acquire_account]),
+    trade_terminal_manager:set_terminal_state(disconnected),
     State#terminal_state{server_status=#server_status{id=list_to_integer(ID), connected=false}};
 
 update_terminal_state({server_status, [{connected, "error"}], _}, State=#terminal_state{}) ->
-    trade_terminal_manager:release_account(),
-    timer:apply_after(?ACQUIRE_ACCOUNT_TIMEOUT, gen_server, cast, [self(), acquire_account]),
+    trade_terminal_manager:set_terminal_state(disconnected),
     State#terminal_state{server_status=#server_status{connected=false}};
 
 update_terminal_state({client, [{id,ID},{remove,"true"}], []}, State=#terminal_state{clients=Clients}) ->
@@ -270,18 +281,15 @@ handle_response(_, {result, [{success, "false"}], [{message, [], [Error]}]}) ->
     {reply, {error, {str, Error}}};
 
 handle_response(login, {server_status, [{id, _}, {connected, "true"}, {recover, "true"}], _}) ->
-    {reply, {error, recover}};
+    {reply, ok};
 
 handle_response(login, {server_status, [{id, _}, {connected, "true"}], _}) ->
-    lager:info("Terminal ~p: logged", [self()]),
     {reply, ok};
 
 handle_response(login, {server_status, [{id, _}, {connected, "false"}], _}) ->
-    lager:error("Terminal ~p: login failed", [self()]),
     {reply, {error, not_connected}};
 
 handle_response(login, {server_status, [{connected, "error"}], [Error]}) ->
-    lager:error("Terminal ~p: login failed with error: '~ts'", [self(), Error]),
     {reply, {error, {str, Error}}};
 
 handle_response(logout, {result,[{success,"true"}],[]}) ->
@@ -299,15 +307,36 @@ handle_response(_Op, _Data) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-add_request(Name, Args, From, State=#state{request_queue=Queue}) ->
-    Request  = #request{name=Name, args=Args, from=From},
+handle_login({error, Error}, State=#state{accinfo=AccInfo}) ->
+    case Error of
+        {str, Message} -> lager:error("Terminal ~p: login failed with message: '~ts'", [self(), Message]);
+        _              -> lager:error("Terminal ~p: login failed with error: ~p", [self(), Error])
+    end,
+    case AccInfo#accinfo.attempts =< ?LOGIN_ATTEMPTS of
+        true ->
+            timer:apply_after(?LOGIN_TIMEOUT, gen_server, cast, [self(), perform_login]),
+            State;
+        false ->
+            trade_terminal_manager:release_account(),
+            timer:apply_after(?ACQUIRE_ACCOUNT_TIMEOUT, gen_server, cast, [self(), acquire_account]),
+            State#state{accinfo=undefined}
+    end;
+
+handle_login(ok, State=#state{accinfo=AccInfo}) ->
+    lager:info("Terminal ~p: logged as '~p'", [self(), AccInfo#accinfo.name]),
+    State#state{accinfo=AccInfo#accinfo{attempts=0}}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+add_request(Name, Args, Callback, State=#state{request_queue=Queue}) ->
+    Request  = #request{name=Name, args=Args, callback=Callback},
     NewQueue = queue:in(Request, Queue),
     NewState = State#state{request_queue=NewQueue},
     case queue:is_empty(Queue) of
         true  -> ok = send_request(NewState);
         false -> ok
     end,
-    {noreply, NewState}.
+    NewState.
 
 send_request(#state{socket=Socket, request_queue=Queue}) ->
     case queue:peek(Queue) of
@@ -318,9 +347,8 @@ send_request(#state{socket=Socket, request_queue=Queue}) ->
             ssl:send(Socket, Request)
     end.
 
-
-send_reply(undefined, _) -> ok;
-send_reply(To, Reply) -> gen_server:reply(To, Reply).
+reply_to(To) ->
+    fun(Reply, State) -> gen_server:reply(To, Reply), State end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
