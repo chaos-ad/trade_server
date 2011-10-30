@@ -12,4 +12,4 @@ clean:
 	rm -rfv erl_crash.dump
 
 distclean: clean
-	rm -rfv ebin deps
+	rm -rfv ebin deps logs database

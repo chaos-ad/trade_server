@@ -1,6 +1,6 @@
 #!/usr/bin/env escript
 %% -*- erlang -*-
-%%! -sname admin@`hostname` -cookie cookie_monsta
+%%! -sname admin@`hostname`
 
 main(_) ->
     Host = list_to_atom("tradesrv@" ++ net_adm:localhost()),
