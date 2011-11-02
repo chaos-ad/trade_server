@@ -37,10 +37,12 @@ set_terminal_state(TerminalState) ->
 init([]) ->
     process_flag(trap_exit, true),
     lager:info("Initializing terminal manager..."),
-    {ok, Opts}  = application:get_env(terminal_manager),
-    AccountList = proplists:get_value(accounts, Opts),
-    Host        = proplists:get_value(host, Opts),
-    Port        = proplists:get_value(port, Opts),
+
+    {ok, Options}     = application:get_env(terminal_manager),
+    {ok, AccountList} = application:get_env(accounts),
+    Host = proplists:get_value(host, Options),
+    Port = proplists:get_value(port, Options),
+
 
     lager:info("Accepting terminal connections at ~s:~B", [Host, Port]),
     mochiweb_socket_server:start([
@@ -50,9 +52,9 @@ init([]) ->
         {loop, fun(Socket) -> trade_terminal:start(Socket) end},
         {ssl, true},
         {ssl_opts, [
-            {keyfile, proplists:get_value(keyfile, Opts)},
-            {certfile, proplists:get_value(certfile, Opts)},
-            {cacertfile, proplists:get_value(cacertfile, Opts)},
+            {keyfile, proplists:get_value(keyfile, Options)},
+            {certfile, proplists:get_value(certfile, Options)},
+            {cacertfile, proplists:get_value(cacertfile, Options)},
             {verify, verify_peer},
             {fail_if_no_peer_cert, true}
         ]}

@@ -3,9 +3,14 @@ all: get-deps compile
 compile:
 	./rebar compile
 
+app:
+	./rebar compile skip_deps=true
 
 get-deps:
 	./rebar get-deps
+
+database:
+	./create-db.sh
 
 clean:
 	./rebar clean

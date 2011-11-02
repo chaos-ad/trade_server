@@ -28,6 +28,7 @@ init([]) ->
     {ok, { {one_for_one, 5, 10}, [
         ?CHILD(trade_db),
         ?CHILD(trade_history),
-        ?CHILD(trade_terminal_manager)
+        ?CHILD(trade_terminal_manager),
+        ?CHILD(trade_strategy_manager)
     ]} }.
 

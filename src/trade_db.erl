@@ -121,7 +121,7 @@ handle_info(_, State) -> {noreply, State}.
 code_change(_, State, _) -> {ok, State}.
 
 terminate(Reason, _State) ->
-    lager:info("terminated with reason ~p", [Reason]),
+    lager:info("Stopping trade database with reason ~p", [Reason]),
     ok.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
