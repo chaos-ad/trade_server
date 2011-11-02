@@ -16,8 +16,9 @@ start_link(Account, Args) ->
     gen_strategy:start_link(?MODULE, Account, Args).
 
 start(Args) ->
-    Period1 = proplists:get_value(period1, Args),
-    Period2 = proplists:get_value(period2, Args),
+    Period1 = proplists:get_value(period1, Args, 10),
+    Period2 = proplists:get_value(period2, Args, 100),
+    lager:debug("Strategy ~p started: periods: ~p, ~p", [?MODULE, Period1, Period2]),
     #state{period1=Period1, period2=Period2}.
 
 update(History, State=#state{period1=P1, period2=P2, ma1=0, ma2=0}) when length(History) >= P2 ->
@@ -47,6 +48,7 @@ update(History, State=#state{period1=P1, period2=P2, ma1=MA1_OLD, ma2=MA2_OLD}) 
     end.
 
 stop(_) ->
+    lager:debug("Strategy ~p stopped", [?MODULE]),
     ok.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
