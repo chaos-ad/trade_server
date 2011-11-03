@@ -16,7 +16,8 @@
 }).
 
 -record(market, {id, name}).
--record(candle, {id, period, name}).
+-record(candlekind, {id, period, name}).
+-record(candle, {date, open, close, high, low, volume}).
 
 -record(money_position, {
     asset,
@@ -114,7 +115,7 @@
     server_status=#server_status{},
     clients=[],
     markets=[],
-    candles=[],
+    candlekinds=[],
     securities=[],
     positions=[],
     trades=[],

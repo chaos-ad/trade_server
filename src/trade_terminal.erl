@@ -3,6 +3,8 @@
 
 -behavior(gen_server).
 
+%% TODO: Reconnect properly
+
 -include("trade_terminal_state.hrl").
 -include_lib("xmerl/include/xmerl.hrl").
 
@@ -20,12 +22,12 @@
 
 -record(request, {name, args, callback}).
 -record(accinfo, {name, login, pass, host, port, attempts=1}).
--record(state,   {socket, accinfo, request_queue=queue:new(), terminal = #terminal_state{}}).
+-record(state,   {socket, accinfo, request_queue=queue:new(), terminal = #terminal_state{}, reply=[]}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--define(LOGIN_ATTEMPTS, 10).
--define(LOGIN_TIMEOUT, 1000*60).
+-define(LOGIN_ATTEMPTS, 3).
+-define(LOGIN_TIMEOUT, 1000*5).
 -define(ACQUIRE_ACCOUNT_TIMEOUT, 1000*60*5).
 -define(SOCKET_OPTIONS, [binary, {packet, 4}, {active, true}, {nodelay, true}, {reuseaddr, true}, {keepalive, true}]).
 
@@ -42,6 +44,10 @@ close(Pid) ->
 
 get_state(Pid) ->
     gen_server:call(Pid, get_terminal_state).
+
+get_candlekinds(Pid) ->
+    State = get_state(Pid),
+    State#terminal_state.candlekinds.
 
 get_markets(Pid) ->
     State = get_state(Pid),
@@ -80,6 +86,15 @@ sell_order(Pid, Market, Security, Amount) ->
 close_order(Pid, TransactionID) ->
     send_request(Pid, cancelorder, [TransactionID]).
 
+get_history_data(Pid, Market, Security, Period, Bars) ->
+    get_history_data(Pid, Market, Security, Period, Bars, true).
+
+get_history_data(Pid, Market, Security, Period, Bars, New) ->
+    get_history_data(Pid, Market, Security, Period, Bars, New, 10000).
+
+get_history_data(Pid, Market, Security, Period, Bars, New, Timeout) ->
+    send_request(Pid, gethistorydata, [Market, Security, Period, Bars, New], Timeout).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 send_request(Pid, Request) ->
@@ -110,6 +125,16 @@ handle_call({request, neworder, [Mode, Market, Security, Amount]}, From, State=#
         ClientID   = get_client_id(Terminal),
         SecurityID = get_security_id(Market, Security, Terminal),
         {noreply, add_request(neworder, [Mode, SecurityID, ClientID, Amount], reply_to(From), State)}
+    catch
+        _:Error ->
+            {reply, {error, Error}, State}
+    end;
+
+handle_call({request, gethistorydata, [Market, Security, Period, Bars, New]}, From, State=#state{terminal=Terminal}) ->
+    try
+        PeriodID = get_period_id(Period, Terminal),
+        SecurityID = get_security_id(Market, Security, Terminal),
+        {noreply, add_request(gethistorydata, [SecurityID, PeriodID, Bars, New], reply_to(From), State)}
     catch
         _:Error ->
             {reply, {error, Error}, State}
@@ -193,6 +218,15 @@ handle_data(Data, State=#state{terminal=Terminal, request_queue=Queue}) ->
             case handle_response(Request#request.name, Data) of
                 noreply ->
                     State#state{terminal=NewTerminal};
+                {reply_chunk, Reply} ->
+                    NewReply = [Reply|State#state.reply],
+                    State#state{terminal=NewTerminal, reply=NewReply};
+                {reply_final, Reply} ->
+                    FullReply = lists:concat(lists:reverse([Reply|State#state.reply])),
+                    NewState1 = State#state{terminal=NewTerminal, request_queue=NewQueue, reply=[]},
+                    NewState2 = erlang:apply(Request#request.callback, [FullReply, NewState1]),
+                    ok = send_request(NewState2),
+                    NewState2;
                 {reply, Reply} ->
                     NewState1 = State#state{terminal=NewTerminal, request_queue=NewQueue},
                     NewState2 = erlang:apply(Request#request.callback, [Reply, NewState1]),
@@ -253,7 +287,7 @@ update_terminal_state({securities,[],SecurityList}, State=#terminal_state{securi
     State#terminal_state{securities=lists:foldl(UpdFn, Securities, NewSecurities)};
 
 update_terminal_state({candlekinds,[],CandleList}, State=#terminal_state{}) ->
-    State#terminal_state{candles=lists:map(fun make_record/1, CandleList)};
+    State#terminal_state{candlekinds=lists:map(fun make_record/1, CandleList)};
 
 update_terminal_state({positions,[],PositionList}, State=#terminal_state{positions=Positions}) ->
     NewPositions = lists:map(fun make_record/1, PositionList),
@@ -275,6 +309,9 @@ update_terminal_state(_Data, State) ->
     State.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+handle_response(_, {error, [], [Error]}) ->
+    {reply, {error, {str, Error}}};
 
 handle_response(_, {result, [{success, "false"}], [{message, [], [Error]}]}) ->
 %     lager:debug("Error: '~ts'", [Error]),
@@ -301,8 +338,18 @@ handle_response(neworder, {result,[{success,"true"},{transactionid,ID}],[]}) ->
 handle_response(cancelorder, {result, [{success, "true"}], _}) ->
     {reply, ok};
 
+handle_response(gethistorydata, {candles, [{secid,_},{period,_},{status,"2"}], Candles}) ->
+    FilteredCandles = lists:filter(fun({candle,_,_}) -> true; (_) -> false end, Candles),
+    lager:debug("New history chunk: ~B bars", [length(FilteredCandles)]),
+    {reply_chunk, lists:map(fun make_record/1, FilteredCandles)};
+
+handle_response(gethistorydata, {candles, [{secid,_},{period,_},{status,S}], Candles}) ->
+    FilteredCandles = lists:filter(fun({candle,_,_}) -> true; (_) -> false end, Candles),
+    lager:debug("Last history chunk: ~B bars (status ~s)", [length(FilteredCandles), S]),
+    {reply_final, lists:map(fun make_record/1, FilteredCandles)};
+
 handle_response(_Op, _Data) ->
-%     lager:info("Operation: ~p, skipped data: ~p", [_Op, _Data]),
+    lager:debug("Operation: ~p, skipped data: ~p", [_Op, _Data]),
     noreply.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -355,6 +402,12 @@ reply_to(To) ->
 get_client_id(#terminal_state{clients=[#client{id=ID}]}) -> ID;
 get_client_id(#terminal_state{}) -> exit(invalid_client).
 
+get_period_id(Period, #terminal_state{candlekinds=Candles}) ->
+    case lists:keyfind(Period*60, 3, Candles) of
+        #candlekind{id=ID} -> ID;
+        false          -> exit(invalid_period)
+    end.
+
 get_security_id(Market, Security, #terminal_state{securities=Securities}) -> get_security_id(Market, Security, Securities);
 get_security_id(Market, Security, Securities) when is_list(Securities) ->
     case lists:keytake(Security, 5, Securities) of
@@ -393,8 +446,15 @@ make_request(login, Args) ->
             "</command>",
     io_lib:format(Format, Args);
 
-make_request(logout, _) -> "<command id='disconnect'/>";
-make_request(server_status, _) ->"<command id='server_status'/>".
+make_request(logout, _) ->
+    "<command id='disconnect'/>";
+
+make_request(server_status, _) ->
+    "<command id='server_status'/>";
+
+make_request(gethistorydata, Args) ->
+    Format = "<command id='gethistorydata' secid='~B' period='~B' count='~B' reset='~p'/>",
+    io_lib:format(Format, Args).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -441,6 +501,16 @@ update_orders(NewOrders, Orders) ->
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+make_record({candle,Attributes,[]}) ->
+    #candle {
+        date    = get_value(datetime, date, Attributes),
+        open    = get_value(number, open, Attributes),
+        close   = get_value(number, close, Attributes),
+        high    = get_value(number, high, Attributes),
+        low     = get_value(number, low, Attributes),
+        volume  = get_value(number, volume, Attributes)
+    };
 
 make_record({order, Attributes, Args}) ->
     #order {
@@ -523,7 +593,7 @@ make_record({market,[{id,ID}],[Name]}) ->
     #market{id=list_to_integer(ID), name=Name};
 
 make_record({kind,[],[{id,[],[ID]},{period,[],[Period]},{name,[],[Name]}]}) ->
-    #candle{id=list_to_integer(ID), period=list_to_integer(Period), name=Name};
+    #candlekind{id=list_to_integer(ID), period=list_to_integer(Period), name=Name};
 
 make_record({security, Attributes, Args}) ->
 
@@ -568,6 +638,12 @@ get_value(Name, Values) ->
         Other               -> Other
     end.
 
+get_value(datetime, Name, Values) ->
+    case get_value(Name, Values) of
+        undefined -> undefined;
+        Result    -> parse_datetime(Result)
+    end;
+
 get_value(atom, Name, Values) ->
     case get_value(Name, Values) of
         undefined -> undefined;
@@ -600,5 +676,11 @@ parse(Bin) when is_binary(Bin) ->
         {Result, []} -> xmerl_lib:simplify_element(Result);
         _            -> exit(parse_error)
     end.
+
+parse_datetime(DateTime) ->
+    {Date, Time} = lists:split(3, string:tokens(DateTime, [$., $:, $ ])),
+    DateParsed = list_to_tuple(lists:reverse(lists:map(fun list_to_integer/1, Date))),
+    TimeParsed = list_to_tuple(lists:map(fun list_to_integer/1, Time)),
+    {DateParsed, TimeParsed}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
