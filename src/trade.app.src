@@ -1,0 +1,15 @@
+%% -*- erlang -*-
+{application, trade,
+ [
+  {description, "Trade server"},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib,
+                  lager,
+                  ssl
+                 ]},
+  {mod, { trade_app, []}},
+  {env, []}
+ ]}.

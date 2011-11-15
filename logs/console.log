@@ -1,0 +1,917 @@
+2011-11-13 05:53:42.985 [info] <0.65.0>@trade_terminal_sup:init:24 Trade accounts: [{pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,[{port,31337},{host,"0.0.0.0"},{ssl,[{keyfile,"/home/chaos/Documents/keys/server/key.pem"},{certfile,"/home/chaos/Documents/keys/server/cert.pem"},{cacertfile,"/home/chaos/Documents/keys/root/cert.pem"}]}]},{terminal,[{exe,"priv/start_terminal.sh"}]}]}]
+2011-11-13 05:53:42.989 [info] <0.66.0>@trade_terminal:init:34 Starting trade terminal 'pasha'...
+2011-11-13 05:53:42.990 [info] <0.66.0>@trade_terminal:init:39 Starting "Acceptor"...
+2011-11-13 05:53:42.991 [info] <0.66.0>@trade_terminal:start_acceptor:95 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 05:53:43.171 [info] <0.66.0>@trade_terminal:init:41 Starting "Acceptor": {ok,<0.80.0>}
+2011-11-13 05:53:43.171 [info] <0.66.0>@trade_terminal:init:43 Starting "Terminal"...
+2011-11-13 05:53:43.171 [info] <0.66.0>@trade_terminal:init:45 Starting "Terminal": ok
+2011-11-13 06:02:33.533 [info] <0.6.0> Application lager started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:02:33.536 [info] <0.66.0>@trade_terminal_sup:init:24 Trade accounts: [{pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,[{port,31337},{host,"0.0.0.0"},{ssl,[{keyfile,"/home/chaos/Documents/keys/server/key.pem"},{certfile,"/home/chaos/Documents/keys/server/cert.pem"},{cacertfile,"/home/chaos/Documents/keys/root/cert.pem"}]}]},{terminal,[{exe,"priv/start_terminal.sh"}]}]}]
+2011-11-13 06:02:33.538 [info] <0.67.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:02:33.538 [info] <0.67.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:02:33.567 [info] <0.6.0> Application crypto started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:02:33.573 [info] <0.6.0> Application public_key started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:02:33.595 [info] <0.6.0> Application ssl started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:02:33.628 [info] <0.67.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:02:33.629 [info] <0.6.0> Application trade started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:03:30.665 [info] <0.6.0> Application lager started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:03:30.709 [info] <0.6.0> Application crypto started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:03:30.717 [info] <0.6.0> Application public_key started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:03:30.740 [info] <0.6.0> Application ssl started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:03:30.743 [info] <0.79.0>@trade_terminal_sup:init:24 Trade accounts: [{pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,[{port,31337},{host,"0.0.0.0"},{ssl,[{keyfile,"/home/chaos/Documents/keys/server/key.pem"},{certfile,"/home/chaos/Documents/keys/server/cert.pem"},{cacertfile,"/home/chaos/Documents/keys/root/cert.pem"}]}]},{terminal,[{exe,"priv/start_terminal.sh"}]}]}]
+2011-11-13 06:03:30.745 [info] <0.80.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:03:30.745 [info] <0.80.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:03:30.768 [info] <0.80.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:03:30.768 [info] <0.6.0> Application trade started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:03:57.270 [info] <0.6.0> Application lager started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:03:57.300 [info] <0.6.0> Application crypto started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:03:57.307 [info] <0.6.0> Application public_key started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:03:57.324 [info] <0.6.0> Application ssl started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:03:57.329 [info] <0.80.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:03:57.329 [info] <0.80.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:03:57.352 [info] <0.80.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:03:57.353 [info] <0.6.0> Application trade started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:04:29.260 [info] <0.6.0> Application lager started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:04:29.293 [info] <0.6.0> Application crypto started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:04:29.298 [info] <0.6.0> Application public_key started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:04:29.315 [info] <0.6.0> Application ssl started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:04:29.320 [info] <0.80.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:04:29.320 [info] <0.80.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:04:29.352 [info] <0.80.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:04:29.353 [info] <0.6.0> Application trade started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:05:08.491 [info] <0.6.0> Application lager started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:05:08.525 [info] <0.6.0> Application crypto started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:05:08.531 [info] <0.6.0> Application public_key started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:05:08.548 [info] <0.6.0> Application ssl started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:05:08.552 [info] <0.80.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:05:08.553 [info] <0.80.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:05:08.557 [info] <0.80.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:05:08.558 [info] <0.6.0> Application trade started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:07:30.274 [info] <0.6.0> Application lager started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:07:30.310 [info] <0.6.0> Application crypto started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:07:30.315 [info] <0.6.0> Application public_key started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:07:30.332 [info] <0.6.0> Application ssl started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:07:30.336 [info] <0.80.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:07:30.336 [info] <0.80.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:07:30.341 [info] <0.80.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:07:30.343 [info] <0.6.0> Application trade started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:07:30.851 [error] <0.80.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:30.853 [info] <0.99.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:07:31.319 [error] <0.81.0> gen_server <0.81.0> terminated with reason: timeout_value
+2011-11-13 06:07:31.319 [info] <0.99.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:07:31.519 [info] <0.99.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:07:31.518 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.80.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:07:31.674 [error] <0.81.0> CRASH REPORT Process <0.81.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:31.755 [error] <0.99.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:31.756 [info] <0.118.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:07:31.863 [error] <0.100.0> gen_server <0.100.0> terminated with reason: timeout_value
+2011-11-13 06:07:31.863 [info] <0.118.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:07:31.974 [error] <0.100.0> CRASH REPORT Process <0.100.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:31.975 [info] <0.118.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:07:32.096 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.99.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:07:32.293 [error] <0.118.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:32.294 [info] <0.137.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:07:32.329 [error] <0.119.0> gen_server <0.119.0> terminated with reason: timeout_value
+2011-11-13 06:07:32.330 [info] <0.137.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:07:32.363 [error] <0.119.0> CRASH REPORT Process <0.119.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:32.366 [info] <0.137.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:07:32.396 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.118.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:07:32.541 [error] <0.137.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:32.542 [info] <0.156.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:07:32.574 [error] <0.138.0> gen_server <0.138.0> terminated with reason: timeout_value
+2011-11-13 06:07:32.574 [info] <0.156.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:07:32.607 [error] <0.138.0> CRASH REPORT Process <0.138.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:32.608 [info] <0.156.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:07:32.641 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.137.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:07:32.842 [error] <0.156.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:32.843 [info] <0.175.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:07:32.896 [error] <0.157.0> gen_server <0.157.0> terminated with reason: timeout_value
+2011-11-13 06:07:32.896 [info] <0.175.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:07:32.929 [error] <0.157.0> CRASH REPORT Process <0.157.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:32.930 [info] <0.175.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:07:32.963 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.156.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:07:33.120 [error] <0.175.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:33.196 [error] <0.176.0> gen_server <0.176.0> terminated with reason: timeout_value
+2011-11-13 06:07:33.197 [info] <0.195.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:07:33.274 [error] <0.176.0> CRASH REPORT Process <0.176.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:33.274 [info] <0.195.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:07:33.296 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.175.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:07:33.298 [info] <0.195.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:07:33.319 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.175.0> exit with reason reached_max_restart_intensity in context shutdown
+2011-11-13 06:07:33.379 [error] <0.78.0> Supervisor trade_sup had child trade_terminal_sup started with trade_terminal_sup:start_link() at <0.79.0> exit with reason shutdown in context child_terminated
+2011-11-13 06:07:33.462 [error] <0.195.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:33.464 [info] <0.214.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:07:33.485 [error] <0.196.0> gen_server <0.196.0> terminated with reason: timeout_value
+2011-11-13 06:07:33.486 [info] <0.214.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:07:33.508 [error] <0.196.0> CRASH REPORT Process <0.196.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:33.509 [info] <0.214.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:07:33.530 [error] <0.194.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.195.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:07:33.743 [error] <0.214.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:33.743 [info] <0.233.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:07:33.785 [error] <0.215.0> gen_server <0.215.0> terminated with reason: timeout_value
+2011-11-13 06:07:33.786 [info] <0.233.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:07:33.808 [error] <0.215.0> CRASH REPORT Process <0.215.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:33.817 [info] <0.233.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:07:33.830 [error] <0.194.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.214.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:07:34.004 [error] <0.233.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:34.005 [info] <0.252.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:07:34.085 [info] <0.252.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:07:34.085 [error] <0.234.0> gen_server <0.234.0> terminated with reason: timeout_value
+2011-11-13 06:07:34.087 [info] <0.252.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:07:34.108 [error] <0.234.0> CRASH REPORT Process <0.234.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:34.130 [error] <0.194.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.233.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:07:34.289 [error] <0.252.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:34.291 [info] <0.271.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:07:34.308 [error] <0.194.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.252.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:07:34.308 [info] <0.271.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:07:34.330 [error] <0.253.0> gen_server <0.253.0> terminated with reason: timeout_value
+2011-11-13 06:07:34.331 [info] <0.271.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:07:34.352 [error] <0.253.0> CRASH REPORT Process <0.253.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:34.501 [error] <0.271.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:34.502 [info] <0.290.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:07:34.585 [error] <0.272.0> gen_server <0.272.0> terminated with reason: timeout_value
+2011-11-13 06:07:34.586 [info] <0.290.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:07:34.608 [error] <0.272.0> CRASH REPORT Process <0.272.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:34.609 [info] <0.290.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:07:34.630 [error] <0.194.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.271.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:07:34.808 [error] <0.290.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:34.885 [error] <0.291.0> gen_server <0.291.0> terminated with reason: timeout_value
+2011-11-13 06:07:34.886 [info] <0.310.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:07:34.908 [error] <0.291.0> CRASH REPORT Process <0.291.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:34.908 [info] <0.310.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:07:34.960 [error] <0.194.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.290.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:07:34.961 [info] <0.310.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:07:34.986 [error] <0.194.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.290.0> exit with reason reached_max_restart_intensity in context shutdown
+2011-11-13 06:07:35.008 [error] <0.78.0> Supervisor trade_sup had child trade_terminal_sup started with trade_terminal_sup:start_link() at <0.194.0> exit with reason shutdown in context child_terminated
+2011-11-13 06:07:35.137 [error] <0.310.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:35.138 [info] <0.329.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:07:35.152 [error] <0.311.0> gen_server <0.311.0> terminated with reason: timeout_value
+2011-11-13 06:07:35.153 [info] <0.329.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:07:35.208 [error] <0.311.0> CRASH REPORT Process <0.311.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:35.209 [info] <0.329.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:07:35.230 [error] <0.309.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.310.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:07:35.420 [error] <0.329.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:35.421 [info] <0.348.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:07:35.486 [error] <0.330.0> gen_server <0.330.0> terminated with reason: timeout_value
+2011-11-13 06:07:35.486 [info] <0.348.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:07:35.508 [error] <0.330.0> CRASH REPORT Process <0.330.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:35.511 [info] <0.348.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:07:35.530 [error] <0.309.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.329.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:07:35.701 [error] <0.348.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:35.702 [info] <0.367.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:07:35.786 [error] <0.349.0> gen_server <0.349.0> terminated with reason: timeout_value
+2011-11-13 06:07:35.786 [info] <0.367.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:07:35.811 [error] <0.349.0> CRASH REPORT Process <0.349.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:35.811 [info] <0.367.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:07:35.830 [error] <0.309.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.348.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:07:36.006 [error] <0.367.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:36.006 [info] <0.386.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:07:36.086 [error] <0.368.0> gen_server <0.368.0> terminated with reason: timeout_value
+2011-11-13 06:07:36.086 [info] <0.386.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:07:36.108 [error] <0.368.0> CRASH REPORT Process <0.368.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:36.111 [info] <0.386.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:07:36.130 [error] <0.309.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.367.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:07:36.289 [error] <0.386.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:36.290 [info] <0.405.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:07:36.308 [error] <0.387.0> gen_server <0.387.0> terminated with reason: timeout_value
+2011-11-13 06:07:36.308 [info] <0.405.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:07:36.364 [error] <0.387.0> CRASH REPORT Process <0.387.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:36.365 [info] <0.405.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:07:36.386 [error] <0.309.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.386.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:07:36.551 [error] <0.405.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:36.580 [error] <0.406.0> gen_server <0.406.0> terminated with reason: timeout_value
+2011-11-13 06:07:36.580 [info] <0.425.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:07:36.613 [error] <0.406.0> CRASH REPORT Process <0.406.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:36.613 [info] <0.425.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:07:36.646 [error] <0.309.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.405.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:07:36.647 [info] <0.425.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:07:36.680 [error] <0.309.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.405.0> exit with reason reached_max_restart_intensity in context shutdown
+2011-11-13 06:07:36.713 [error] <0.78.0> Supervisor trade_sup had child trade_terminal_sup started with trade_terminal_sup:start_link() at <0.309.0> exit with reason shutdown in context child_terminated
+2011-11-13 06:07:36.858 [error] <0.425.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:36.859 [info] <0.444.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:07:36.891 [error] <0.426.0> gen_server <0.426.0> terminated with reason: timeout_value
+2011-11-13 06:07:36.891 [info] <0.444.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:07:36.924 [error] <0.426.0> CRASH REPORT Process <0.426.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:36.925 [info] <0.444.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:07:36.958 [error] <0.424.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.425.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:07:37.106 [error] <0.444.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:37.107 [info] <0.463.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:07:37.135 [error] <0.445.0> gen_server <0.445.0> terminated with reason: timeout_value
+2011-11-13 06:07:37.136 [info] <0.463.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:07:37.169 [error] <0.445.0> CRASH REPORT Process <0.445.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:37.177 [info] <0.463.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:07:37.202 [error] <0.424.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.444.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:07:37.388 [error] <0.463.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:37.389 [info] <0.482.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:07:37.402 [info] <0.482.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:07:37.403 [error] <0.464.0> gen_server <0.464.0> terminated with reason: timeout_value
+2011-11-13 06:07:37.404 [info] <0.482.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:07:37.424 [error] <0.464.0> CRASH REPORT Process <0.464.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:07:37.447 [error] <0.424.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.463.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:09:34.037 [info] <0.6.0> Application lager started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:09:34.068 [info] <0.6.0> Application crypto started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:09:34.074 [info] <0.6.0> Application public_key started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:09:34.090 [info] <0.6.0> Application ssl started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:09:34.096 [info] <0.80.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:09:34.096 [info] <0.80.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:09:34.111 [info] <0.80.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:09:34.113 [info] <0.6.0> Application trade started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:09:34.571 [info] <0.99.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:09:34.571 [error] <0.80.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:09:34.571 [info] <0.99.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:09:34.602 [info] <0.99.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:09:34.601 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.80.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:09:34.623 [error] <0.81.0> gen_server <0.81.0> terminated with reason: timeout_value
+2011-11-13 06:09:34.645 [error] <0.81.0> CRASH REPORT Process <0.81.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:09:34.899 [error] <0.99.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:09:34.900 [info] <0.118.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:09:34.991 [info] <0.118.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:09:34.992 [info] <0.118.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:09:34.992 [error] <0.100.0> gen_server <0.100.0> terminated with reason: timeout_value
+2011-11-13 06:09:35.031 [error] <0.100.0> CRASH REPORT Process <0.100.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:09:35.064 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.99.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:09:35.301 [error] <0.118.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:09:35.302 [info] <0.137.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:09:35.386 [error] <0.119.0> gen_server <0.119.0> terminated with reason: timeout_value
+2011-11-13 06:09:35.387 [info] <0.137.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:09:35.409 [error] <0.119.0> CRASH REPORT Process <0.119.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:09:35.412 [info] <0.137.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:09:35.431 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.118.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:09:35.703 [error] <0.137.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:09:35.704 [info] <0.156.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:09:35.731 [error] <0.138.0> gen_server <0.138.0> terminated with reason: timeout_value
+2011-11-13 06:09:35.731 [info] <0.156.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:09:35.753 [error] <0.138.0> CRASH REPORT Process <0.138.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:09:35.754 [info] <0.156.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:09:35.776 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.137.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:09:36.042 [error] <0.156.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:09:36.043 [info] <0.175.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:09:36.087 [info] <0.175.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:09:36.087 [error] <0.157.0> gen_server <0.157.0> terminated with reason: timeout_value
+2011-11-13 06:09:36.088 [info] <0.175.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:09:36.109 [error] <0.157.0> CRASH REPORT Process <0.157.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:09:36.131 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.156.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:09:36.308 [error] <0.175.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:09:36.387 [error] <0.176.0> gen_server <0.176.0> terminated with reason: timeout_value
+2011-11-13 06:09:36.387 [info] <0.195.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:09:36.409 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.175.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:09:36.409 [info] <0.195.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:09:36.431 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.175.0> exit with reason reached_max_restart_intensity in context shutdown
+2011-11-13 06:09:36.433 [info] <0.195.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:09:36.487 [error] <0.78.0> Supervisor trade_sup had child trade_terminal_sup started with trade_terminal_sup:start_link() at <0.79.0> exit with reason shutdown in context child_terminated
+2011-11-13 06:09:36.509 [error] <0.176.0> CRASH REPORT Process <0.176.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:09:36.644 [error] <0.195.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:09:36.645 [info] <0.214.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:09:36.664 [error] <0.196.0> gen_server <0.196.0> terminated with reason: timeout_value
+2011-11-13 06:09:36.665 [info] <0.214.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:09:36.687 [error] <0.196.0> CRASH REPORT Process <0.196.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:09:36.688 [info] <0.214.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:09:36.740 [error] <0.194.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.195.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:09:36.918 [error] <0.214.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:09:36.919 [info] <0.233.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:09:36.987 [error] <0.215.0> gen_server <0.215.0> terminated with reason: timeout_value
+2011-11-13 06:09:36.988 [info] <0.233.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:09:37.009 [error] <0.215.0> CRASH REPORT Process <0.215.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:09:37.012 [info] <0.233.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:09:37.032 [error] <0.194.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.214.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:09:37.177 [error] <0.233.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:09:37.179 [info] <0.252.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:09:37.198 [error] <0.234.0> gen_server <0.234.0> terminated with reason: timeout_value
+2011-11-13 06:09:37.198 [info] <0.252.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:09:37.222 [error] <0.234.0> CRASH REPORT Process <0.234.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:09:37.222 [info] <0.252.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:09:37.243 [error] <0.194.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.233.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:09:37.410 [error] <0.252.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:09:37.411 [info] <0.271.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:09:37.487 [info] <0.271.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:09:37.487 [error] <0.253.0> gen_server <0.253.0> terminated with reason: timeout_value
+2011-11-13 06:09:37.489 [info] <0.271.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:09:37.554 [error] <0.253.0> CRASH REPORT Process <0.253.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:09:37.587 [error] <0.194.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.252.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:09:37.716 [error] <0.271.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:09:37.717 [info] <0.290.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:09:37.743 [error] <0.272.0> gen_server <0.272.0> terminated with reason: timeout_value
+2011-11-13 06:09:37.743 [info] <0.290.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:09:37.776 [error] <0.194.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.271.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:09:37.777 [info] <0.290.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:09:37.809 [error] <0.272.0> CRASH REPORT Process <0.272.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:09:37.972 [error] <0.290.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:09:37.998 [error] <0.291.0> gen_server <0.291.0> terminated with reason: timeout_value
+2011-11-13 06:09:37.999 [info] <0.310.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:09:38.032 [error] <0.291.0> CRASH REPORT Process <0.291.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:09:38.032 [info] <0.310.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:09:38.065 [error] <0.194.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.290.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:09:38.066 [info] <0.310.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:09:38.098 [error] <0.194.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.290.0> exit with reason reached_max_restart_intensity in context shutdown
+2011-11-13 06:09:38.132 [error] <0.78.0> Supervisor trade_sup had child trade_terminal_sup started with trade_terminal_sup:start_link() at <0.194.0> exit with reason shutdown in context child_terminated
+2011-11-13 06:09:38.252 [error] <0.310.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:09:38.253 [info] <0.329.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:09:38.282 [error] <0.311.0> gen_server <0.311.0> terminated with reason: timeout_value
+2011-11-13 06:09:38.283 [info] <0.329.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:09:38.304 [error] <0.311.0> CRASH REPORT Process <0.311.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:09:38.305 [info] <0.329.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:09:38.327 [error] <0.309.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.310.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:09:38.489 [error] <0.329.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:09:38.491 [info] <0.348.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:09:38.515 [error] <0.330.0> gen_server <0.330.0> terminated with reason: timeout_value
+2011-11-13 06:09:38.515 [info] <0.348.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:09:38.549 [error] <0.330.0> CRASH REPORT Process <0.330.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:09:38.550 [info] <0.348.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:09:38.582 [error] <0.309.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.329.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:09:38.765 [error] <0.348.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:09:38.766 [info] <0.367.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:09:38.793 [error] <0.349.0> gen_server <0.349.0> terminated with reason: timeout_value
+2011-11-13 06:09:38.793 [info] <0.367.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:09:38.827 [error] <0.349.0> CRASH REPORT Process <0.349.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:09:38.827 [info] <0.367.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:09:38.860 [error] <0.309.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.348.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:09:39.048 [error] <0.367.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:09:39.049 [info] <0.386.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:09:39.082 [error] <0.368.0> gen_server <0.368.0> terminated with reason: timeout_value
+2011-11-13 06:09:39.082 [info] <0.386.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:09:39.115 [error] <0.368.0> CRASH REPORT Process <0.368.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:09:39.118 [info] <0.386.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:09:39.149 [error] <0.309.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.367.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:09:39.332 [error] <0.386.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:09:39.333 [info] <0.405.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:09:39.393 [error] <0.387.0> gen_server <0.387.0> terminated with reason: timeout_value
+2011-11-13 06:09:39.393 [info] <0.405.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:09:39.427 [error] <0.387.0> CRASH REPORT Process <0.387.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:09:39.427 [info] <0.405.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:09:39.460 [error] <0.309.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.386.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:09:39.606 [error] <0.405.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:09:39.627 [error] <0.309.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.405.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:09:39.627 [info] <0.425.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:09:39.649 [error] <0.309.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.405.0> exit with reason reached_max_restart_intensity in context shutdown
+2011-11-13 06:09:39.649 [info] <0.425.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:09:39.721 [error] <0.406.0> gen_server <0.406.0> terminated with reason: timeout_value
+2011-11-13 06:09:39.722 [info] <0.425.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:09:39.754 [error] <0.78.0> Supervisor trade_sup had child trade_terminal_sup started with trade_terminal_sup:start_link() at <0.309.0> exit with reason shutdown in context child_terminated
+2011-11-13 06:09:39.788 [error] <0.406.0> CRASH REPORT Process <0.406.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:09:39.917 [error] <0.425.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:09:39.917 [info] <0.444.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:09:39.943 [error] <0.426.0> gen_server <0.426.0> terminated with reason: timeout_value
+2011-11-13 06:09:39.943 [info] <0.444.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:09:39.977 [error] <0.424.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.425.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:09:39.977 [info] <0.444.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:09:40.010 [error] <0.437.0> CRASH REPORT Process <0.437.0> with 0 neighbours crashed with reason: {timeout_value,{gen_server,call,[<0.425.0>,{accept,#Port<0.3506>}]}}
+2011-11-13 06:09:40.043 [error] <0.426.0> CRASH REPORT Process <0.426.0> with 4 neighbours crashed with reason: timeout_value
+2011-11-13 06:09:40.181 [error] <0.444.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:09:40.183 [info] <0.463.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:09:40.210 [error] <0.445.0> gen_server <0.445.0> terminated with reason: timeout_value
+2011-11-13 06:09:40.210 [info] <0.463.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:09:40.243 [error] <0.445.0> CRASH REPORT Process <0.445.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:09:40.244 [info] <0.463.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:09:40.277 [error] <0.424.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.444.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:10:00.606 [info] <0.6.0> Application lager started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:10:00.651 [info] <0.6.0> Application crypto started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:10:00.654 [info] <0.6.0> Application public_key started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:10:00.677 [info] <0.6.0> Application ssl started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:10:00.682 [info] <0.80.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:10:00.683 [info] <0.80.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:10:00.688 [info] <0.80.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:10:00.689 [info] <0.6.0> Application trade started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:10:01.167 [info] <0.99.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:10:01.167 [info] <0.99.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:10:01.168 [info] <0.99.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:10:01.176 [error] <0.80.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:10:01.245 [error] <0.81.0> gen_server <0.81.0> terminated with reason: timeout_value
+2011-11-13 06:10:01.278 [error] <0.81.0> CRASH REPORT Process <0.81.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:10:01.312 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.80.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:10:01.483 [error] <0.99.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:10:01.484 [info] <0.118.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:10:01.556 [error] <0.100.0> gen_server <0.100.0> terminated with reason: timeout_value
+2011-11-13 06:10:01.556 [info] <0.118.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:10:01.590 [error] <0.100.0> CRASH REPORT Process <0.100.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:10:01.590 [info] <0.118.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:10:01.623 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.99.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:10:01.911 [error] <0.118.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:10:01.911 [info] <0.137.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:10:01.956 [error] <0.119.0> gen_server <0.119.0> terminated with reason: timeout_value
+2011-11-13 06:10:01.957 [info] <0.137.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:10:02.001 [error] <0.119.0> CRASH REPORT Process <0.119.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:10:02.003 [info] <0.137.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:10:02.034 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.118.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:10:02.327 [error] <0.137.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:10:02.328 [info] <0.156.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:10:02.357 [error] <0.138.0> gen_server <0.138.0> terminated with reason: timeout_value
+2011-11-13 06:10:02.357 [info] <0.156.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:10:02.435 [error] <0.138.0> CRASH REPORT Process <0.138.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:10:02.435 [info] <0.156.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:10:02.459 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.137.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:10:02.613 [error] <0.156.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:10:02.614 [info] <0.175.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:10:02.635 [error] <0.157.0> gen_server <0.157.0> terminated with reason: timeout_value
+2011-11-13 06:10:02.635 [info] <0.175.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:10:02.729 [error] <0.157.0> CRASH REPORT Process <0.157.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:10:02.731 [info] <0.175.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:10:02.790 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.156.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:10:02.931 [error] <0.175.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:10:02.946 [error] <0.176.0> gen_server <0.176.0> terminated with reason: timeout_value
+2011-11-13 06:10:02.946 [info] <0.195.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:10:02.968 [error] <0.176.0> CRASH REPORT Process <0.176.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:10:02.968 [info] <0.195.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:10:02.990 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.175.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:10:02.991 [info] <0.195.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:10:03.012 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.175.0> exit with reason reached_max_restart_intensity in context shutdown
+2011-11-13 06:10:03.035 [error] <0.78.0> Supervisor trade_sup had child trade_terminal_sup started with trade_terminal_sup:start_link() at <0.79.0> exit with reason shutdown in context child_terminated
+2011-11-13 06:10:03.172 [error] <0.195.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:10:03.173 [info] <0.214.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:10:03.190 [error] <0.196.0> gen_server <0.196.0> terminated with reason: timeout_value
+2011-11-13 06:10:03.190 [info] <0.214.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:10:03.212 [error] <0.196.0> CRASH REPORT Process <0.196.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:10:03.213 [info] <0.214.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:10:03.235 [error] <0.194.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.195.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:10:03.410 [error] <0.214.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:10:03.411 [info] <0.233.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:10:03.446 [error] <0.215.0> gen_server <0.215.0> terminated with reason: timeout_value
+2011-11-13 06:10:03.446 [info] <0.233.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:10:03.479 [error] <0.215.0> CRASH REPORT Process <0.215.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:10:03.482 [info] <0.233.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:10:03.512 [error] <0.194.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.214.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:10:03.668 [error] <0.233.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:10:03.669 [info] <0.252.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:10:03.746 [error] <0.234.0> gen_server <0.234.0> terminated with reason: timeout_value
+2011-11-13 06:10:03.746 [info] <0.252.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:10:03.831 [error] <0.234.0> CRASH REPORT Process <0.234.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:10:03.832 [info] <0.252.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:10:03.864 [error] <0.194.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.233.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:10:04.014 [error] <0.252.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:10:04.015 [info] <0.271.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:10:04.030 [error] <0.253.0> gen_server <0.253.0> terminated with reason: timeout_value
+2011-11-13 06:10:04.030 [info] <0.271.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:10:04.052 [error] <0.194.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.252.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:10:04.054 [info] <0.271.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:10:04.074 [error] <0.253.0> CRASH REPORT Process <0.253.0> with 10 neighbours crashed with reason: timeout_value
+2011-11-13 06:10:04.290 [error] <0.271.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:10:04.291 [info] <0.290.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:10:04.341 [error] <0.272.0> gen_server <0.272.0> terminated with reason: timeout_value
+2011-11-13 06:10:04.341 [info] <0.290.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:10:04.363 [error] <0.272.0> CRASH REPORT Process <0.272.0> with 15 neighbours crashed with reason: timeout_value
+2011-11-13 06:10:04.364 [info] <0.290.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:10:04.386 [error] <0.194.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.271.0> exit with reason timeout_value in context child_terminated
+2011-11-13 06:10:04.567 [error] <0.290.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: timeout_value
+2011-11-13 06:10:04.597 [error] <0.291.0> gen_server <0.291.0> terminated with reason: timeout_value
+2011-11-13 06:11:50.985 [info] <0.6.0> Application lager started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:11:51.017 [info] <0.6.0> Application crypto started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:11:51.022 [info] <0.6.0> Application public_key started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:11:51.038 [info] <0.6.0> Application ssl started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:11:51.043 [info] <0.80.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:11:51.043 [info] <0.80.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:11:51.048 [info] <0.80.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:11:51.049 [info] <0.6.0> Application trade started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:11:51.508 [error] <0.82.0> CRASH REPORT Process <0.82.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:12:32.030 [info] <0.6.0> Application lager started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:12:32.065 [info] <0.6.0> Application crypto started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:12:32.071 [info] <0.6.0> Application public_key started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:12:32.088 [info] <0.6.0> Application ssl started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:12:32.093 [info] <0.80.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:12:32.093 [info] <0.80.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:12:32.098 [info] <0.80.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:12:32.099 [info] <0.6.0> Application trade started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:12:32.559 [error] <0.82.0> CRASH REPORT Process <0.82.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:13:02.294 [info] <0.6.0> Application lager started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:13:02.327 [info] <0.6.0> Application crypto started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:13:02.333 [info] <0.6.0> Application public_key started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:13:02.350 [info] <0.6.0> Application ssl started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:13:02.355 [info] <0.80.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:13:02.355 [info] <0.80.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:13:02.360 [info] <0.80.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:13:02.361 [info] <0.6.0> Application trade started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:13:02.853 [error] <0.82.0> CRASH REPORT Process <0.82.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:18:33.240 [info] <0.6.0> Application lager started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:18:33.274 [info] <0.6.0> Application crypto started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:18:33.281 [info] <0.6.0> Application public_key started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:18:33.297 [info] <0.6.0> Application ssl started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:18:33.302 [info] <0.80.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:18:33.303 [info] <0.80.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:18:33.307 [info] <0.80.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:18:33.309 [info] <0.6.0> Application trade started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:18:33.783 [error] <0.82.0> CRASH REPORT Process <0.82.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:19:07.778 [info] <0.6.0> Application lager started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:19:07.811 [info] <0.6.0> Application crypto started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:19:07.817 [info] <0.6.0> Application public_key started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:19:07.832 [info] <0.6.0> Application ssl started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:19:07.837 [info] <0.80.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:19:07.837 [info] <0.80.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:19:07.842 [info] <0.80.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:19:07.844 [info] <0.6.0> Application trade started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:19:08.330 [error] <0.82.0> CRASH REPORT Process <0.82.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:19:32.549 [info] <0.6.0> Application lager started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:19:32.581 [info] <0.6.0> Application crypto started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:19:32.586 [info] <0.6.0> Application public_key started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:19:32.620 [info] <0.6.0> Application ssl started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:19:32.626 [info] <0.80.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:19:32.626 [info] <0.80.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:19:32.639 [info] <0.80.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:19:32.640 [info] <0.6.0> Application trade started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:19:33.115 [error] <0.82.0> CRASH REPORT Process <0.82.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:19:52.130 [info] <0.6.0> Application lager started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:19:52.203 [info] <0.6.0> Application crypto started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:19:52.204 [info] <0.6.0> Application public_key started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:19:52.217 [info] <0.6.0> Application ssl started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:19:52.237 [info] <0.80.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:19:52.237 [info] <0.80.0>@trade_terminal:make_acceptor_options:67 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:19:52.245 [info] <0.80.0>@trade_terminal:start_terminal:89 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:19:52.246 [info] <0.6.0> Application trade started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:19:52.712 [error] <0.82.0> CRASH REPORT Process <0.82.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:23:12.624 [info] <0.6.0> Application lager started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:23:12.664 [info] <0.6.0> Application crypto started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:23:12.670 [info] <0.6.0> Application public_key started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:23:12.696 [info] <0.6.0> Application ssl started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:23:12.700 [info] <0.80.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:23:12.701 [info] <0.80.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:23:12.706 [info] <0.80.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:23:12.708 [info] <0.6.0> Application trade started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:23:13.158 [error] <0.82.0> CRASH REPORT Process <0.82.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:23:18.248 [error] <0.80.0> gen_server trade_terminal terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:23:18.248 [info] <0.99.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:23:18.332 [error] <0.80.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:23:18.333 [info] <0.99.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:23:18.377 [error] <0.81.0> gen_server <0.81.0> terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:23:18.378 [info] <0.99.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:23:18.410 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.80.0> exit with reason bad return value: {stop,normal} in context child_terminated
+2011-11-13 06:23:18.443 [error] <0.81.0> CRASH REPORT Process <0.81.0> with 14 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:23:18.924 [error] <0.109.0> CRASH REPORT Process <0.109.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:23:25.142 [error] <0.99.0> gen_server trade_terminal terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:23:25.143 [info] <0.118.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:23:25.223 [error] <0.99.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:23:25.223 [info] <0.118.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:23:25.306 [error] <0.100.0> gen_server <0.100.0> terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:23:25.306 [info] <0.118.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:23:25.395 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.99.0> exit with reason bad return value: {stop,normal} in context child_terminated
+2011-11-13 06:23:25.517 [error] <0.100.0> CRASH REPORT Process <0.100.0> with 0 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:23:26.096 [error] <0.120.0> CRASH REPORT Process <0.120.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:23:31.052 [error] <0.118.0> gen_server trade_terminal terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:23:31.053 [info] <0.137.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:23:31.117 [error] <0.118.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:23:31.117 [info] <0.137.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:23:31.139 [error] <0.119.0> gen_server <0.119.0> terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:23:31.140 [info] <0.137.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:23:31.161 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.118.0> exit with reason bad return value: {stop,normal} in context child_terminated
+2011-11-13 06:23:31.184 [error] <0.119.0> CRASH REPORT Process <0.119.0> with 9 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:23:31.688 [error] <0.139.0> CRASH REPORT Process <0.139.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:23:36.761 [error] <0.137.0> gen_server trade_terminal terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:23:36.762 [info] <0.156.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:23:36.851 [error] <0.137.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:23:36.851 [info] <0.156.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:23:36.873 [error] <0.138.0> gen_server <0.138.0> terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:23:36.875 [info] <0.156.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:23:36.895 [error] <0.138.0> CRASH REPORT Process <0.138.0> with 15 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:23:36.918 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.137.0> exit with reason bad return value: {stop,normal} in context child_terminated
+2011-11-13 06:23:37.401 [error] <0.158.0> CRASH REPORT Process <0.158.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:23:42.471 [error] <0.156.0> gen_server trade_terminal terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:23:42.472 [info] <0.175.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:23:42.540 [error] <0.156.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:23:42.541 [info] <0.175.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:23:42.562 [error] <0.157.0> gen_server <0.157.0> terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:23:42.564 [info] <0.175.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:23:42.585 [error] <0.157.0> CRASH REPORT Process <0.157.0> with 15 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:23:42.607 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.156.0> exit with reason bad return value: {stop,normal} in context child_terminated
+2011-11-13 06:23:43.038 [error] <0.177.0> CRASH REPORT Process <0.177.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:23:48.111 [error] <0.175.0> gen_server trade_terminal terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:23:48.112 [info] <0.194.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:23:48.210 [error] <0.175.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:23:48.210 [info] <0.194.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:23:48.232 [error] <0.176.0> gen_server <0.176.0> terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:23:48.233 [info] <0.194.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:23:48.254 [error] <0.176.0> CRASH REPORT Process <0.176.0> with 15 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:23:48.278 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.175.0> exit with reason bad return value: {stop,normal} in context child_terminated
+2011-11-13 06:23:48.748 [error] <0.196.0> CRASH REPORT Process <0.196.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:23:53.818 [error] <0.194.0> gen_server trade_terminal terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:23:53.818 [info] <0.213.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:23:53.888 [error] <0.194.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:23:53.888 [info] <0.213.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:23:53.911 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.194.0> exit with reason bad return value: {stop,normal} in context child_terminated
+2011-11-13 06:23:53.912 [info] <0.213.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:23:53.933 [error] <0.195.0> gen_server <0.195.0> terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:23:53.955 [error] <0.195.0> CRASH REPORT Process <0.195.0> with 15 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:23:54.419 [error] <0.215.0> CRASH REPORT Process <0.215.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:23:59.456 [error] <0.213.0> gen_server trade_terminal terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:23:59.456 [info] <0.232.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:23:59.555 [error] <0.213.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:23:59.556 [info] <0.232.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:23:59.578 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.213.0> exit with reason bad return value: {stop,normal} in context child_terminated
+2011-11-13 06:23:59.579 [info] <0.232.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:23:59.600 [error] <0.214.0> gen_server <0.214.0> terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:23:59.622 [error] <0.214.0> CRASH REPORT Process <0.214.0> with 15 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:24:00.063 [error] <0.234.0> CRASH REPORT Process <0.234.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:24:05.188 [error] <0.232.0> gen_server trade_terminal terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:24:05.189 [info] <0.251.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:24:05.456 [error] <0.232.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:24:05.456 [info] <0.251.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:24:05.478 [error] <0.233.0> gen_server <0.233.0> terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:24:05.479 [info] <0.251.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:24:05.500 [error] <0.233.0> CRASH REPORT Process <0.233.0> with 15 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:24:05.523 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.232.0> exit with reason bad return value: {stop,normal} in context child_terminated
+2011-11-13 06:24:05.972 [error] <0.259.0> CRASH REPORT Process <0.259.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:24:11.053 [error] <0.251.0> gen_server trade_terminal terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:24:11.054 [info] <0.270.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:24:11.144 [error] <0.251.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:24:11.144 [info] <0.270.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:24:11.188 [error] <0.252.0> gen_server <0.252.0> terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:24:11.189 [info] <0.270.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:24:11.210 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.251.0> exit with reason bad return value: {stop,normal} in context child_terminated
+2011-11-13 06:24:11.232 [error] <0.252.0> CRASH REPORT Process <0.252.0> with 15 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:24:11.706 [error] <0.283.0> CRASH REPORT Process <0.283.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:24:16.738 [error] <0.270.0> gen_server trade_terminal terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:24:16.739 [info] <0.289.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:24:16.799 [error] <0.270.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:24:16.800 [info] <0.289.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:24:16.822 [error] <0.271.0> gen_server <0.271.0> terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:24:16.823 [info] <0.289.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:24:16.844 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.270.0> exit with reason bad return value: {stop,normal} in context child_terminated
+2011-11-13 06:24:16.866 [error] <0.271.0> CRASH REPORT Process <0.271.0> with 3 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:24:17.335 [error] <0.299.0> CRASH REPORT Process <0.299.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:24:22.365 [error] <0.289.0> gen_server trade_terminal terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:24:22.365 [info] <0.308.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:24:22.433 [error] <0.289.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:24:22.434 [info] <0.308.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:24:22.456 [error] <0.290.0> gen_server <0.290.0> terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:24:22.457 [info] <0.308.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:24:22.478 [error] <0.290.0> CRASH REPORT Process <0.290.0> with 15 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:24:22.500 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.289.0> exit with reason bad return value: {stop,normal} in context child_terminated
+2011-11-13 06:24:22.973 [error] <0.310.0> CRASH REPORT Process <0.310.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:24:27.949 [error] <0.308.0> gen_server trade_terminal terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:24:27.950 [info] <0.327.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:24:28.012 [error] <0.308.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:24:28.012 [info] <0.327.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:24:28.034 [error] <0.309.0> gen_server <0.309.0> terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:24:28.035 [info] <0.327.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:24:28.057 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.308.0> exit with reason bad return value: {stop,normal} in context child_terminated
+2011-11-13 06:24:28.078 [error] <0.309.0> CRASH REPORT Process <0.309.0> with 10 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:24:28.546 [error] <0.329.0> CRASH REPORT Process <0.329.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:24:33.668 [error] <0.327.0> gen_server trade_terminal terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:24:33.669 [info] <0.346.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:24:33.760 [error] <0.327.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:24:33.760 [info] <0.346.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:24:33.782 [error] <0.328.0> gen_server <0.328.0> terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:24:33.784 [info] <0.346.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:24:33.804 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.327.0> exit with reason bad return value: {stop,normal} in context child_terminated
+2011-11-13 06:24:33.826 [error] <0.328.0> CRASH REPORT Process <0.328.0> with 10 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:24:34.313 [error] <0.348.0> CRASH REPORT Process <0.348.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:24:40.587 [error] <0.346.0> gen_server trade_terminal terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:24:40.588 [info] <0.365.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:24:40.660 [error] <0.346.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:24:40.661 [info] <0.365.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:24:40.683 [error] <0.347.0> gen_server <0.347.0> terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:24:40.684 [info] <0.365.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:24:40.705 [error] <0.347.0> CRASH REPORT Process <0.347.0> with 15 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:24:40.727 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.346.0> exit with reason bad return value: {stop,normal} in context child_terminated
+2011-11-13 06:24:41.196 [error] <0.367.0> CRASH REPORT Process <0.367.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:24:51.620 [info] <0.6.0> Application lager started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:24:51.683 [info] <0.6.0> Application crypto started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:24:51.691 [info] <0.6.0> Application public_key started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:24:51.743 [info] <0.6.0> Application ssl started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:24:51.751 [info] <0.80.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:24:51.752 [info] <0.80.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:24:51.800 [info] <0.80.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:24:51.802 [info] <0.6.0> Application trade started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:26:04.009 [info] <0.6.0> Application lager started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:26:04.043 [info] <0.6.0> Application crypto started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:26:04.048 [info] <0.6.0> Application public_key started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:26:04.065 [info] <0.6.0> Application ssl started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:26:04.069 [info] <0.80.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:26:04.070 [info] <0.80.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:26:04.074 [info] <0.80.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:26:04.076 [info] <0.6.0> Application trade started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:26:04.516 [error] <0.82.0> CRASH REPORT Process <0.82.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:26:15.555 [info] <0.6.0> Application lager started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:26:15.587 [info] <0.6.0> Application crypto started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:26:15.593 [info] <0.6.0> Application public_key started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:26:15.624 [info] <0.6.0> Application ssl started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:26:15.629 [info] <0.80.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:26:15.629 [info] <0.80.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:26:15.647 [info] <0.80.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:26:15.649 [info] <0.6.0> Application trade started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:26:16.079 [error] <0.82.0> CRASH REPORT Process <0.82.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:26:21.217 [error] <0.80.0> gen_server trade_terminal terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:26:21.217 [info] <0.99.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:26:21.280 [error] <0.80.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:26:21.281 [info] <0.99.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:26:21.303 [error] <0.81.0> gen_server <0.81.0> terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:26:21.304 [info] <0.99.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:26:21.325 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.80.0> exit with reason bad return value: {stop,normal} in context child_terminated
+2011-11-13 06:26:21.347 [error] <0.81.0> CRASH REPORT Process <0.81.0> with 1 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:26:21.807 [error] <0.101.0> CRASH REPORT Process <0.101.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:26:26.830 [error] <0.99.0> gen_server trade_terminal terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:26:26.831 [info] <0.118.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:26:26.903 [error] <0.99.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:26:26.903 [info] <0.118.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:26:26.925 [error] <0.100.0> gen_server <0.100.0> terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:26:26.926 [info] <0.118.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:26:26.948 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.99.0> exit with reason bad return value: {stop,normal} in context child_terminated
+2011-11-13 06:26:27.000 [error] <0.100.0> CRASH REPORT Process <0.100.0> with 8 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:26:27.498 [error] <0.126.0> CRASH REPORT Process <0.126.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:26:32.609 [error] <0.118.0> gen_server trade_terminal terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:26:32.610 [info] <0.137.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:26:32.672 [error] <0.118.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:26:32.672 [info] <0.137.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:26:32.694 [error] <0.119.0> gen_server <0.119.0> terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:26:32.694 [info] <0.137.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:26:32.727 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.118.0> exit with reason bad return value: {stop,normal} in context child_terminated
+2011-11-13 06:26:32.761 [error] <0.119.0> CRASH REPORT Process <0.119.0> with 3 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:26:33.240 [error] <0.150.0> CRASH REPORT Process <0.150.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:26:39.456 [error] <0.137.0> gen_server trade_terminal terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:26:39.517 [error] <0.137.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:26:39.517 [info] <0.157.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:26:39.539 [error] <0.138.0> gen_server <0.138.0> terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:26:39.539 [info] <0.157.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:26:39.572 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.137.0> exit with reason bad return value: {stop,normal} in context child_terminated
+2011-11-13 06:26:39.573 [info] <0.157.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:26:39.606 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.137.0> exit with reason reached_max_restart_intensity in context shutdown
+2011-11-13 06:26:39.683 [error] <0.78.0> Supervisor trade_sup had child trade_terminal_sup started with trade_terminal_sup:start_link() at <0.79.0> exit with reason shutdown in context child_terminated
+2011-11-13 06:26:39.706 [error] <0.138.0> CRASH REPORT Process <0.138.0> with 14 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:26:40.087 [error] <0.159.0> CRASH REPORT Process <0.159.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:26:45.177 [error] <0.157.0> gen_server trade_terminal terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:26:45.178 [info] <0.176.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:26:45.239 [error] <0.157.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:26:45.240 [info] <0.176.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:26:45.262 [error] <0.158.0> gen_server <0.158.0> terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:26:45.263 [info] <0.176.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:26:45.295 [error] <0.158.0> CRASH REPORT Process <0.158.0> with 15 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:26:45.328 [error] <0.156.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.157.0> exit with reason bad return value: {stop,normal} in context child_terminated
+2011-11-13 06:26:45.774 [error] <0.178.0> CRASH REPORT Process <0.178.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:26:50.901 [error] <0.176.0> gen_server trade_terminal terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:26:50.901 [info] <0.195.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:26:50.962 [error] <0.176.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:26:50.963 [info] <0.195.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:26:51.041 [error] <0.156.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.176.0> exit with reason bad return value: {stop,normal} in context child_terminated
+2011-11-13 06:26:51.042 [info] <0.195.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:26:51.074 [error] <0.177.0> gen_server <0.177.0> terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:26:51.107 [error] <0.177.0> CRASH REPORT Process <0.177.0> with 15 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:26:51.559 [error] <0.197.0> CRASH REPORT Process <0.197.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:27:36.582 [info] <0.6.0> Application lager started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:27:36.618 [info] <0.6.0> Application crypto started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:27:36.624 [info] <0.6.0> Application public_key started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:27:36.656 [info] <0.6.0> Application ssl started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:27:36.664 [info] <0.80.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:27:36.664 [info] <0.80.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:27:36.669 [info] <0.80.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:27:36.670 [info] <0.6.0> Application trade started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:27:37.113 [error] <0.82.0> CRASH REPORT Process <0.82.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:27:42.214 [error] <0.80.0> gen_server trade_terminal terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:27:42.215 [info] <0.99.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:27:42.367 [error] <0.80.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:27:42.367 [info] <0.99.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:27:42.400 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.80.0> exit with reason bad return value: {stop,normal} in context child_terminated
+2011-11-13 06:27:42.401 [info] <0.99.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:27:42.434 [error] <0.81.0> gen_server <0.81.0> terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:27:42.467 [error] <0.81.0> CRASH REPORT Process <0.81.0> with 15 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:27:42.899 [error] <0.101.0> CRASH REPORT Process <0.101.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:27:47.993 [error] <0.99.0> gen_server trade_terminal terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:27:47.993 [info] <0.118.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:27:48.057 [error] <0.99.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:27:48.058 [info] <0.118.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:27:48.090 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.99.0> exit with reason bad return value: {stop,normal} in context child_terminated
+2011-11-13 06:27:48.091 [info] <0.118.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:27:48.123 [error] <0.100.0> gen_server <0.100.0> terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:27:48.157 [error] <0.100.0> CRASH REPORT Process <0.100.0> with 15 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:27:48.555 [error] <0.120.0> CRASH REPORT Process <0.120.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:27:53.683 [error] <0.118.0> gen_server trade_terminal terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:27:53.683 [info] <0.137.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:27:53.746 [error] <0.118.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:27:53.746 [info] <0.137.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:27:53.779 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.118.0> exit with reason bad return value: {stop,normal} in context child_terminated
+2011-11-13 06:27:53.780 [info] <0.137.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:27:53.812 [error] <0.119.0> gen_server <0.119.0> terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:27:53.868 [error] <0.119.0> CRASH REPORT Process <0.119.0> with 15 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:27:54.311 [error] <0.139.0> CRASH REPORT Process <0.139.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:27:59.353 [error] <0.137.0> gen_server trade_terminal terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:27:59.354 [info] <0.157.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:27:59.424 [error] <0.137.0> CRASH REPORT Process trade_terminal with 0 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:27:59.424 [info] <0.157.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:27:59.493 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.137.0> exit with reason bad return value: {stop,normal} in context child_terminated
+2011-11-13 06:27:59.494 [info] <0.157.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:27:59.523 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.137.0> exit with reason reached_max_restart_intensity in context shutdown
+2011-11-13 06:27:59.545 [error] <0.78.0> Supervisor trade_sup had child trade_terminal_sup started with trade_terminal_sup:start_link() at <0.79.0> exit with reason shutdown in context child_terminated
+2011-11-13 06:27:59.567 [error] <0.138.0> gen_server <0.138.0> terminated with reason: bad return value: {stop,normal}
+2011-11-13 06:27:59.589 [error] <0.138.0> CRASH REPORT Process <0.138.0> with 10 neighbours crashed with reason: bad return value: {stop,normal}
+2011-11-13 06:28:00.003 [error] <0.159.0> CRASH REPORT Process <0.159.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:28:27.303 [info] <0.6.0> Application lager started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:28:27.336 [info] <0.6.0> Application crypto started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:28:27.342 [info] <0.6.0> Application public_key started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:28:27.358 [info] <0.6.0> Application ssl started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:28:27.362 [info] <0.80.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:28:27.363 [info] <0.80.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:28:27.367 [info] <0.80.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:28:27.369 [info] <0.6.0> Application trade started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:28:27.875 [error] <0.82.0> CRASH REPORT Process <0.82.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:28:32.854 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.80.0> exit with reason normal in context child_terminated
+2011-11-13 06:28:32.854 [info] <0.99.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:28:32.915 [info] <0.99.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:28:32.916 [info] <0.99.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:28:33.398 [error] <0.101.0> CRASH REPORT Process <0.101.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:28:38.452 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.99.0> exit with reason normal in context child_terminated
+2011-11-13 06:28:38.452 [info] <0.118.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:28:38.604 [info] <0.118.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:28:38.605 [info] <0.118.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:28:39.076 [error] <0.120.0> CRASH REPORT Process <0.120.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:28:44.171 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.118.0> exit with reason normal in context child_terminated
+2011-11-13 06:28:44.172 [info] <0.137.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:28:44.238 [info] <0.137.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:28:44.239 [info] <0.137.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:28:44.662 [error] <0.139.0> CRASH REPORT Process <0.139.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:28:49.845 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.137.0> exit with reason normal in context child_terminated
+2011-11-13 06:28:49.905 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.137.0> exit with reason reached_max_restart_intensity in context shutdown
+2011-11-13 06:28:49.905 [info] <0.157.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:28:49.927 [error] <0.78.0> Supervisor trade_sup had child trade_terminal_sup started with trade_terminal_sup:start_link() at <0.79.0> exit with reason shutdown in context child_terminated
+2011-11-13 06:28:49.928 [info] <0.157.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:28:49.951 [info] <0.157.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:28:50.436 [error] <0.159.0> CRASH REPORT Process <0.159.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:31:18.281 [info] <0.6.0> Application lager started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:31:18.314 [info] <0.6.0> Application crypto started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:31:18.320 [info] <0.6.0> Application public_key started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:31:18.337 [info] <0.6.0> Application ssl started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:31:18.342 [info] <0.80.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:31:18.343 [info] <0.80.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:31:18.348 [info] <0.80.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:31:18.349 [info] <0.6.0> Application trade started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:31:18.825 [error] <0.82.0> CRASH REPORT Process <0.82.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:31:23.885 [info] <0.99.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:31:23.885 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.80.0> exit with reason normal in context child_terminated
+2011-11-13 06:31:23.886 [info] <0.99.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:31:24.026 [info] <0.99.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:31:24.512 [error] <0.101.0> CRASH REPORT Process <0.101.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:31:29.598 [info] <0.118.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:31:29.598 [info] <0.118.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:31:29.599 [info] <0.118.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:31:29.600 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.99.0> exit with reason normal in context child_terminated
+2011-11-13 06:31:30.060 [error] <0.120.0> CRASH REPORT Process <0.120.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:31:35.227 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.118.0> exit with reason normal in context child_terminated
+2011-11-13 06:31:35.228 [info] <0.137.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:31:35.308 [info] <0.137.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:31:35.309 [info] <0.137.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:31:35.792 [error] <0.139.0> CRASH REPORT Process <0.139.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:31:40.847 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.137.0> exit with reason normal in context child_terminated
+2011-11-13 06:31:40.909 [info] <0.157.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:31:40.909 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.137.0> exit with reason reached_max_restart_intensity in context shutdown
+2011-11-13 06:31:40.909 [info] <0.157.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:31:40.932 [error] <0.78.0> Supervisor trade_sup had child trade_terminal_sup started with trade_terminal_sup:start_link() at <0.79.0> exit with reason shutdown in context child_terminated
+2011-11-13 06:31:40.934 [info] <0.157.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:31:41.486 [error] <0.159.0> CRASH REPORT Process <0.159.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:31:46.507 [error] <0.156.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.157.0> exit with reason normal in context child_terminated
+2011-11-13 06:31:46.508 [info] <0.176.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:31:46.587 [info] <0.176.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:31:46.588 [info] <0.176.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:31:47.048 [error] <0.178.0> CRASH REPORT Process <0.178.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:31:52.167 [error] <0.156.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.176.0> exit with reason normal in context child_terminated
+2011-11-13 06:31:52.167 [info] <0.195.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:31:52.232 [info] <0.195.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:31:52.233 [info] <0.195.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:31:52.714 [error] <0.197.0> CRASH REPORT Process <0.197.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:31:57.761 [error] <0.156.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.195.0> exit with reason normal in context child_terminated
+2011-11-13 06:31:57.761 [info] <0.214.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:31:57.821 [info] <0.214.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:31:57.822 [info] <0.214.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:31:58.318 [error] <0.216.0> CRASH REPORT Process <0.216.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:32:04.544 [error] <0.156.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.214.0> exit with reason normal in context child_terminated
+2011-11-13 06:32:04.611 [error] <0.156.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.214.0> exit with reason reached_max_restart_intensity in context shutdown
+2011-11-13 06:32:04.611 [info] <0.234.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:32:04.679 [error] <0.78.0> Supervisor trade_sup had child trade_terminal_sup started with trade_terminal_sup:start_link() at <0.156.0> exit with reason shutdown in context child_terminated
+2011-11-13 06:32:04.680 [info] <0.234.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:32:04.712 [info] <0.234.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:32:05.256 [error] <0.236.0> CRASH REPORT Process <0.236.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:32:10.277 [error] <0.233.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.234.0> exit with reason normal in context child_terminated
+2011-11-13 06:32:10.277 [info] <0.253.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:32:10.367 [info] <0.253.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:32:10.368 [info] <0.253.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:32:10.859 [error] <0.255.0> CRASH REPORT Process <0.255.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:33:07.306 [info] <0.6.0> Application lager started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:33:07.338 [info] <0.6.0> Application crypto started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:33:07.343 [info] <0.6.0> Application public_key started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:33:07.358 [info] <0.6.0> Application ssl started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:33:07.362 [info] <0.80.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:33:07.363 [info] <0.80.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:33:07.367 [info] <0.80.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:33:07.369 [info] <0.6.0> Application trade started on node 'tradesrv@chaos-macbook'
+2011-11-13 06:33:07.883 [error] <0.82.0> CRASH REPORT Process <0.82.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:33:12.787 [info] <0.99.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:33:12.787 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.80.0> exit with reason normal in context child_terminated
+2011-11-13 06:33:12.788 [info] <0.99.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:33:12.851 [info] <0.99.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:33:13.363 [error] <0.101.0> CRASH REPORT Process <0.101.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:33:18.266 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.99.0> exit with reason normal in context child_terminated
+2011-11-13 06:33:18.267 [info] <0.118.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:33:18.328 [info] <0.118.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:33:18.329 [info] <0.118.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:33:18.824 [error] <0.120.0> CRASH REPORT Process <0.120.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:33:23.880 [info] <0.138.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:33:23.880 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.118.0> exit with reason normal in context child_terminated
+2011-11-13 06:33:23.881 [info] <0.138.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:33:23.940 [error] <0.79.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.118.0> exit with reason reached_max_restart_intensity in context shutdown
+2011-11-13 06:33:23.940 [info] <0.138.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:33:23.962 [error] <0.78.0> Supervisor trade_sup had child trade_terminal_sup started with trade_terminal_sup:start_link() at <0.79.0> exit with reason shutdown in context child_terminated
+2011-11-13 06:33:24.473 [error] <0.140.0> CRASH REPORT Process <0.140.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:33:29.507 [error] <0.137.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.138.0> exit with reason normal in context child_terminated
+2011-11-13 06:33:29.508 [info] <0.157.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:33:29.618 [info] <0.157.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:33:29.619 [info] <0.157.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:33:30.051 [error] <0.159.0> CRASH REPORT Process <0.159.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:33:35.186 [error] <0.137.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.157.0> exit with reason normal in context child_terminated
+2011-11-13 06:33:35.186 [info] <0.176.0>@trade_terminal:init:31 Starting trade terminal 'pasha'...
+2011-11-13 06:33:35.252 [info] <0.176.0>@trade_terminal:make_acceptor_options:71 Accepting terminal connection at 0.0.0.0:31337
+2011-11-13 06:33:35.253 [info] <0.176.0>@trade_terminal:start_terminal:93 Spawning terminal process: "priv/start_terminal.sh"
+2011-11-13 06:33:35.766 [error] <0.178.0> CRASH REPORT Process <0.178.0> with 0 neighbours crashed with reason: {badmatch,{error,invalid_request}}
+2011-11-13 06:33:40.748 [error] <0.137.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.176.0> exit with reason normal in context child_terminated
+2011-11-13 06:33:40.853 [error] <0.137.0> Supervisor trade_terminal_sup had child pasha started with trade_terminal:start_link({pasha,[{account,[{login,"TCNN9757"},{passwd,"w6q3Q2"},{host,"195.128.78.60"},{port,3939}]},{acceptor,...},...]}) at <0.176.0> exit with reason reached_max_restart_intensity in context shutdown

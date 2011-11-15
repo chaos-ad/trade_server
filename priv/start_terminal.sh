@@ -1,0 +1,1 @@
+../../trade_terminal/install/start.sh
