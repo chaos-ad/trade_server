@@ -7,8 +7,7 @@
   {applications, [
                   kernel,
                   stdlib,
-                  lager,
-                  ssl
+                  lager
                  ]},
   {mod, { trade_app, []}},
   {env, []}

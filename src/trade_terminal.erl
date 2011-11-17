@@ -11,7 +11,7 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--record(state, {account, acceptor, terminal}).
+-record(state, {socket, terminal}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -29,13 +29,32 @@ stop(Pid, Reason) ->
 init({Name, Options}) ->
     process_flag(trap_exit, true),
     lager:info("Starting trade terminal '~p'...", [Name]),
-    AccountOptions = proplists:get_value(account, Options),
-    AcceptorOptions = proplists:get_value(acceptor, Options),
-    TerminalOptions = proplists:get_value(terminal, Options),
-    {ok, #state{account=AccountOptions,
-                acceptor=start_acceptor(AcceptorOptions),
-                terminal=start_terminal(TerminalOptions)}}.
 
+    _Name = proplists:get_value(name, Options),
+    _Pass = proplists:get_value(pass, Options),
+    _Host = proplists:get_value(host, Options),
+    _Port = proplists:get_value(port, Options),
+
+    AcceptOpts = [
+        binary,
+        {packet, 4},
+        {ip, {127,0,0,1}},
+        {keepalive, true}, {nodelay, true}, {reuseaddr, true}, {backlog, 1}
+    ],
+    lager:debug("Opening acceptor..."),
+    {ok, Acceptor} = gen_tcp:listen(0, AcceptOpts),
+    {ok, AcceptorPort} = inet:port(Acceptor),
+    lager:debug("Acceptor opened at port ~B", [AcceptorPort]),
+
+    {ok, TermPath} = application:get_env(terminal),
+    TermArgs = ["--host localhost --port " ++ integer_to_list(AcceptorPort)],
+    lager:debug("Spawning terminal process: ~p with args ~p", [TermPath, TermArgs]),
+    TermOpts = [binary, nouse_stdio, hide, exit_status, {args, TermArgs}],
+    Terminal = erlang:open_port({spawn_executable, TermPath}, TermOpts),
+    lager:debug("Terminal spawned successfully"),
+
+    {ok, Socket} = gen_tcp:accept(Acceptor, 10000),
+    {ok, #state{socket=Socket, terminal=Terminal}}.
 
 handle_call({stop, Reason}, _, State) ->
     {stop, Reason, State};
@@ -47,6 +66,23 @@ handle_call(Data, From, State) ->
 handle_cast(Data, State) ->
     lager:debug("Unexpected cast received: ~p", [Data]),
     {noreply, State}.
+
+
+handle_info({tcp, Socket, Data}, State=#state{socket=Socket}) ->
+    lager:debug("Data received from socket: ~p", [Data]),
+    {noreply, State};
+
+handle_info({tcp_closed, Socket}, State=#state{socket=Socket}) ->
+    lager:debug("Terminal disconnected with reaspon: socket closed"),
+    {stop, normal, State};
+
+handle_info({tcp_error, Socket, Reason}, State=#state{socket=Socket}) ->
+    lager:debug("Terminal disconnected with reaspon: ~p", [Reason]),
+    {stop, Reason, State};
+
+handle_info({tcp_error, Socket, Reason}, State=#state{socket=Socket}) ->
+    lager:debug("Terminal disconnected with reaspon: ~p", [Reason]),
+    {stop, Reason, State};
 
 handle_info({'EXIT', Terminal, Reason}, State=#state{terminal=Terminal}) ->
     lager:debug("Terminal stopped with reaspon: ~p", [Reason]),
@@ -63,41 +99,3 @@ code_change(_, State, _) ->
     {ok, State}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-make_acceptor_options(Options) ->
-    Self = self(),
-    Host = proplists:get_value(host, Options),
-    Port = proplists:get_value(port, Options),
-    lager:info("Accepting terminal connection at ~s:~B", [Host, Port]),
-    SSLOptions = make_ssl_options(proplists:get_value(ssl, Options, undefined)),
-    Loop = fun(Socket) -> ok = gen_server:call(Self, {accept, Socket}) end,
-    [{ip, Host}, {port, Port}, {loop, Loop}] ++ SSLOptions.
-
-make_ssl_options(undefined) -> [];
-make_ssl_options(SSLOptions) ->
-    [{ssl, true},
-     {ssl_opts, [
-        {keyfile, proplists:get_value(keyfile, SSLOptions)},
-        {certfile, proplists:get_value(certfile, SSLOptions)},
-        {cacertfile, proplists:get_value(cacertfile, SSLOptions)},
-        {verify, verify_peer},
-        {fail_if_no_peer_cert, true}
-    ]}].
-
-start_acceptor(Options) ->
-    AcceptorOptions = make_acceptor_options(Options),
-    {ok, Pid} = mochiweb_socket_server:start(AcceptorOptions), Pid.
-
-start_terminal(Options) ->
-    Exe = proplists:get_value(exe, Options),
-    lager:info("Spawning terminal process: ~p", [Exe]),
-    Port = erlang:open_port({spawn_executable, Exe}, [binary, nouse_stdio, hide]),
-    Port.
-
-% send_login_request(Port, Args) ->
-%     Format= "<command id='connect'>"
-%                 "<login>~s</login><password>~s</password><host>~s</host><port>~B</port>"
-%                 "<logsdir>./logs/</logsdir><loglevel>0</loglevel>"
-%                 "<rqdelay>500</rqdelay><session_timeout>25</session_timeout><request_timeout>20</request_timeout>"
-%             "</command>~n",
-%     port_command(Port, io_lib:format(Format, Args)).

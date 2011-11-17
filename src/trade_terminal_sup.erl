@@ -30,6 +30,6 @@ init([]) ->
 child_spec(Account) ->
     Name = element(1, Account),
     StartFunc = {trade_terminal, start_link, [Account]},
-    {Name, StartFunc, permanent, 60000, supervisor, [trade_terminal]}.
+    {Name, StartFunc, permanent, 60000, worker, [trade_terminal]}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
