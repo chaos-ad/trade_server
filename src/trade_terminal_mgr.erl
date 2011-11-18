@@ -1,5 +1,6 @@
--module(trade_terminal_sup).
+-module(trade_terminal_mgr).
 -behaviour(supervisor).
+-compile(export_all).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -7,6 +8,7 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+-define(SERVER, {global, ?MODULE}).
 -define(CHILD(I), {I, {I, start_link, []}, permanent, 60000, worker, [I]}).
 -define(CHILD(I, Args), {I, {I, start_link, Args}, permanent, 60000, worker, [I]}).
 -define(CHILD(I, Args, Role), {I, {I, start_link, Options}, permanent, 60000, Role, [I]}).
@@ -14,7 +16,24 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 start_link() ->
-    supervisor:start_link({local, ?MODULE}, ?MODULE, []).
+    supervisor:start_link(?SERVER, ?MODULE, []).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+accounts() ->
+    [ {Name, Pid} || {Name, Pid, _, _} <- supervisor:which_children(?SERVER) ].
+
+stop_account(Account) ->
+    supervisor:terminate_child(?SERVER, Account).
+
+start_account(Account) ->
+    supervisor:restart_child(?SERVER, Account).
+
+add_account(Account) ->
+    supervisor:start_child(?SERVER, child_spec(Account)).
+
+del_account(Account) ->
+    supervisor:delete_child(?SERVER, Account).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

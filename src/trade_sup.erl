@@ -20,7 +20,7 @@ start_link() ->
 
 init([]) ->
     {ok, { {one_for_one, 1, 3200}, [
-        ?CHILD(trade_terminal_sup)
+        ?CHILD(trade_terminal_mgr)
     ]} }.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
