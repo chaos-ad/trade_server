@@ -23,6 +23,12 @@ start_link() ->
 accounts() ->
     [ {Name, Pid} || {Name, Pid, _, _} <- supervisor:which_children(?SERVER) ].
 
+account(Name) ->
+    case lists:keyfind(Name, 1, accounts()) of
+        {Name, Pid} -> Pid;
+        undefined   -> undefined
+    end.
+
 stop_account(Account) ->
     supervisor:terminate_child(?SERVER, Account).
 
@@ -48,7 +54,8 @@ init([]) ->
 
 child_spec(Account) ->
     Name = element(1, Account),
-    StartFunc = {trade_terminal, start_link, [Account]},
+    Options = element(2, Account) ++ [{acc_name, Name}],
+    StartFunc = {trade_terminal, start_link, [Options]},
     {Name, StartFunc, permanent, 60000, worker, [trade_terminal]}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

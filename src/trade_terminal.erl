@@ -20,7 +20,10 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 start_link(Options) ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, Options, []).
+    case proplists:get_value(acc_name, Options) of
+        {global, Name} -> gen_server:start_link({global, Name}, ?MODULE, Options, []);
+        Name           -> gen_server:start_link({local, Name}, ?MODULE, Options, [])
+    end.
 
 stop(Pid) ->
     stop(Pid, normal).
@@ -60,12 +63,18 @@ get_trades(Pid) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 buy_order(Pid, Market, Security, Amount) ->
-    send_sync_request(Pid, neworder, [buy, Market, Security, Amount]).
+    new_order(Pid, buy, Market, Security, Amount).
 
 sell_order(Pid, Market, Security, Amount) ->
-    send_sync_request(Pid, neworder, [sell, Market, Security, Amount]).
+    new_order(Pid, sell, Market, Security, Amount).
 
-close_order(Pid, TransactionID) ->
+new_order(Pid, Mode, Market, Security, Amount) ->
+    Terminal   = get_state(Pid),
+    ClientID   = get_client_id(Terminal),
+    SecurityID = get_security_id(Market, Security, Terminal),
+    send_sync_request(Pid, neworder, [Mode, SecurityID, ClientID, Amount]).
+
+cancel_order(Pid, TransactionID) ->
     send_sync_request(Pid, cancelorder, [TransactionID]).
 
 get_history_data(Pid, Market, Security, Period, Bars) ->
@@ -75,7 +84,10 @@ get_history_data(Pid, Market, Security, Period, Bars, New) ->
     get_history_data(Pid, Market, Security, Period, Bars, New, 10000).
 
 get_history_data(Pid, Market, Security, Period, Bars, New, Timeout) ->
-    send_sync_request(Pid, gethistorydata, [Market, Security, Period, Bars, New], Timeout).
+    Terminal    = get_state(Pid),
+    PeriodID    = get_period_id(Period, Terminal),
+    SecurityID  = get_security_id(Market, Security, Terminal),
+    send_sync_request(Pid, gethistorydata, [SecurityID, PeriodID, Bars, New], Timeout).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -90,9 +102,9 @@ send_sync_request(Pid, Request, Args, Timeout) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-init({TerminalName, Options}) ->
+init(Options) ->
     process_flag(trap_exit, true),
-    lager:info("Starting trade terminal '~p'...", [TerminalName]),
+    lager:info("Starting trade terminal '~p'...", [proplists:get_value(acc_name, Options)]),
 
     {ok, Acceptor}  = open_acceptor(),
     {ok, _Terminal} = open_terminal(Acceptor),
@@ -116,7 +128,13 @@ handle_call({sync_request, Request, Args}, _, State) ->
     {Result, NewState} = sync_request(Request, Args, State),
     {reply, Result, NewState};
 
-handle_call(Data, From, State) ->
+handle_call(get_terminal_state, _, State=#state{terminal=Terminal}) ->
+    {reply, Terminal, State};
+
+% handle_call({request, Name, Args}, From, State) ->
+%     {noreply, add_request(Name, Args, reply_to(From), State)};
+
+handle_call(Data, {From, _}, State) ->
     lager:debug("Unexpected call received from ~p: ~p", [From, Data]),
     {reply, {error, invalid_request}, State}.
 
@@ -124,9 +142,12 @@ handle_cast(Data, State) ->
     lager:debug("Unexpected cast received: ~p", [Data]),
     {noreply, State}.
 
-% handle_info({tcp, Socket, Data}, State=#state{socket=Socket}) ->
-%     lager:debug("Data received from socket: ~p", [Data]),
-%     {noreply, State};
+handle_info({tcp, Socket, RawData}, State=#state{socket=Socket, terminal=Terminal}) ->
+    Data = parse(RawData),
+    lager:debug("Data received from socket: ~p", [Data]),
+    NewTerminal = update_terminal_state(Data, Terminal),
+    NewState = State#state{terminal=NewTerminal},
+    {noreply, NewState};
 
 % handle_info({tcp_error, Socket, Error}, State=#state{socket=Socket}) ->
 %     lager:debug("Terminal ~p: closed with reason ~p", [self(), Error]),
@@ -160,7 +181,7 @@ read_response(Name, Acc, State=#state{socket=Socket, terminal=Terminal}) ->
             NewState = State#state{terminal=NewTerminal},
             case handle_response(Name, Data, Acc) of
                 noreply        -> read_response(Name, Acc, NewState);
-                {read,  Reply} -> read_response(Name, Reply, NewState);
+                {more,  Reply} -> read_response(Name, Reply, NewState);
                 {reply, Reply} -> {Reply, NewState}
             end;
         {error, Error} ->
@@ -361,6 +382,23 @@ open_socket(Acceptor) -> open_socket(Acceptor, 5000).
 open_socket({_, LSocket}, Timeout) -> gen_tcp:accept(LSocket, Timeout).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+get_client_id(#terminal_state{clients=[#client{id=ID}]}) -> ID;
+get_client_id(#terminal_state{}) -> exit(invalid_client).
+
+get_period_id(Period, #terminal_state{candlekinds=Candles}) ->
+    case lists:keyfind(Period*60, 3, Candles) of
+        #candlekind{id=ID} -> ID;
+        false          -> exit(invalid_period)
+    end.
+
+get_security_id(Market, Security, #terminal_state{securities=Securities}) -> get_security_id(Market, Security, Securities);
+get_security_id(Market, Security, Securities) when is_list(Securities) ->
+    case lists:keytake(Security, 5, Securities) of
+        {value, #security{secid=ID, market=Market}, _} -> ID;
+        {value, #security{}, Rest} -> get_security_id(Market, Security, Rest);
+        false -> exit(invalid_security)
+    end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
