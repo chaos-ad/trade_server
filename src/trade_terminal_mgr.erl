@@ -44,7 +44,7 @@ del_account(Account) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 init([]) ->
-    lager:debug("Starting trade terminal supervisor..."),
+    lager:debug("Starting trade terminal manager..."),
     {ok, Accounts} = application:get_env(accounts),
     RestartStrategy = {one_for_one, 2, 600},
     Children = lists:map(fun child_spec/1, Accounts),
@@ -52,10 +52,8 @@ init([]) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-child_spec(Account) ->
-    Name = element(1, Account),
-    Options = element(2, Account) ++ [{acc_name, Name}],
-    StartFunc = {trade_terminal, start_link, [Options]},
+child_spec({Name, Options}) ->
+    StartFunc = {trade_terminal_starter, start_link, [Name, Options]},
     {Name, StartFunc, permanent, 60000, worker, [trade_terminal]}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

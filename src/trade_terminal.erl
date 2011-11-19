@@ -15,15 +15,12 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % -record(request, {name, args, callback}).
--record(state,   {socket, request_queue=queue:new(), terminal = #terminal_state{}, reply=[]}).
+-record(state,   {socket, port, request_queue=queue:new(), terminal = #terminal_state{}, reply=[]}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-start_link(Options) ->
-    case proplists:get_value(acc_name, Options) of
-        {global, Name} -> gen_server:start_link({global, Name}, ?MODULE, Options, []);
-        Name           -> gen_server:start_link({local, Name}, ?MODULE, Options, [])
-    end.
+start_link(Name, Options) ->
+    gen_server:start_link({local, Name}, ?MODULE, Options, []).
 
 stop(Pid) ->
     stop(Pid, normal).
@@ -104,25 +101,24 @@ send_sync_request(Pid, Request, Args, Timeout) ->
 
 init(Options) ->
     process_flag(trap_exit, true),
-    lager:info("Starting trade terminal '~p'...", [proplists:get_value(acc_name, Options)]),
 
-    {ok, Acceptor}  = open_acceptor(),
-    {ok, _Terminal} = open_terminal(Acceptor),
-    {ok, Socket}    = open_socket(Acceptor),
+    {ok, Acceptor} = open_acceptor(),
+    {ok, Terminal} = open_terminal(Acceptor),
+    {ok, Socket}   = open_socket(Acceptor),
 
     Name = proplists:get_value(name, Options),
     Pass = proplists:get_value(pass, Options),
     Host = proplists:get_value(host, Options),
     Port = proplists:get_value(port, Options),
-    lager:info("Logging as ~p", [Name]),
-    case sync_request(login, [Name, Pass, Host, Port], #state{socket=Socket}) of
-        {ok, State}                -> {ok, State};
-        {{error, {str, Error}}, _} -> lager:error("Failed to login: ~ts", [Error]), {stop, Error};
-        {{error, Error}, _}        -> lager:error("Failed to login: ~p",  [Error]), {stop, Error}
+
+    State = #state{socket=Socket, port=Terminal},
+    case sync_request(login, [Name, Pass, Host, Port], State) of
+        {ok, NewState}      -> {ok, NewState};
+        {{error, Error}, _} -> {stop, Error}
     end.
 
 handle_call({stop, Reason}, _, State) ->
-    {stop, Reason, State};
+    {stop, Reason, ok, State};
 
 handle_call({sync_request, Request, Args}, _, State) ->
     {Result, NewState} = sync_request(Request, Args, State),

@@ -9,7 +9,7 @@
 
 -define(CHILD(I), {I, {I, start_link, []}, permanent, 60000, worker, [I]}).
 -define(CHILD(I, Args), {I, {I, start_link, Args}, permanent, 60000, worker, [I]}).
--define(CHILD(I, Args, Role), {I, {I, start_link, Options}, permanent, 60000, Role, [I]}).
+-define(CHILD(I, Args, Role), {I, {I, start_link, Args}, permanent, 60000, Role, [I]}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -20,7 +20,7 @@ start_link() ->
 
 init([]) ->
     {ok, { {one_for_one, 1, 3200}, [
-        ?CHILD(trade_terminal_mgr)
+        ?CHILD(trade_terminal_mgr, [], supervisor)
     ]} }.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
