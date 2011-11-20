@@ -53,7 +53,7 @@ init([]) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 child_spec({Name, Options}) ->
-    StartFunc = {trade_terminal_starter, start_link, [Name, Options]},
+    StartFunc = {trade_terminal, start_link, [Name, Options]},
     {Name, StartFunc, permanent, 60000, worker, [trade_terminal]}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

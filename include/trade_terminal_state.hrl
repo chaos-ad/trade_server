@@ -1,7 +1,7 @@
 -record(server_status, {
     id,
-    connected,
-    recover
+    connected=false,
+    recover=false
 }).
 
 -record(client,  {

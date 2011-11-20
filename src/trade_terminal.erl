@@ -15,12 +15,13 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % -record(request, {name, args, callback}).
--record(state, {socket, port, terminal=#terminal_state{}}).
+-record(login_info, {logging, name, pass, host, port, limit, period, interval, history=[]}).
+-record(state, {name, socket, login_info, terminal=#terminal_state{}}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 start_link(Name, Options) ->
-    gen_server:start_link({local, Name}, ?MODULE, Options, []).
+    gen_server:start_link({local, Name}, ?MODULE, {Name, Options}, []).
 
 stop(Pid) ->
     stop(Pid, normal).
@@ -99,23 +100,31 @@ send_sync_request(Pid, Request, Args, Timeout) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-init(Options) ->
+init({Name, Options}) ->
     process_flag(trap_exit, true),
 
+    lager:info("Starting terminal '~p'...", [Name]),
     {ok, Acceptor} = open_acceptor(),
     {ok, _} = open_terminal(Acceptor),
     {ok, Socket}   = open_socket(Acceptor),
 
-    Name = proplists:get_value(name, Options),
-    Pass = proplists:get_value(pass, Options),
-    Host = proplists:get_value(host, Options),
-    Port = proplists:get_value(port, Options),
+    State =
+    #state{
+        name=Name,
+        socket=Socket,
+        login_info=#login_info{
+            name     = proplists:get_value(name, Options),
+            pass     = proplists:get_value(pass, Options),
+            host     = proplists:get_value(host, Options),
+            port     = proplists:get_value(port, Options),
+            limit    = proplists:get_value(login_limit, Options, 5),
+            period   = proplists:get_value(login_period, Options, 60),
+            interval = proplists:get_value(login_interval, Options, 5)
+    }},
 
-    State = #state{socket=Socket},
-    case sync_request(login, [Name, Pass, Host, Port], State) of
-        {ok, NewState}      -> {ok, NewState};
-        {{error, Error}, _} -> {stop, Error}
-    end.
+    lager:info("Terminal '~p' started: ~p", [Name, self()]),
+
+    {ok, login_if_needed(State)}.
 
 handle_call({stop, Reason}, _, State) ->
     {stop, Reason, ok, State};
@@ -127,12 +136,27 @@ handle_call({sync_request, Request, Args}, _, State) ->
 handle_call(get_terminal_state, _, State=#state{terminal=Terminal}) ->
     {reply, Terminal, State};
 
-% handle_call({request, Name, Args}, From, State) ->
-%     {noreply, add_request(Name, Args, reply_to(From), State)};
-
 handle_call(Data, {From, _}, State) ->
     lager:debug("Unexpected call received from ~p: ~p", [From, Data]),
     {reply, {error, invalid_request}, State}.
+
+handle_cast(login, State=#state{name=TName, login_info=LoginInfo=#login_info{
+        name=Name, pass=Pass, host=Host, port=Port}}) ->
+
+    lager:info("Terminal '~p': logging...", [TName]),
+    {Result, State1} = sync_request(login, [Name, Pass, Host, Port], State),
+    NewState = State1#state{login_info=LoginInfo#login_info{logging=false}},
+    case Result of
+        ok ->
+            lager:info("Terminal '~p': logged in", [TName]),
+            {noreply, NewState};
+        {error, {str, Error}} ->
+            lager:error("Terminal '~p': failed to log in: \"~ts\"", [TName, Error]),
+            {noreply, login_if_needed(NewState)};
+        {error, Error} ->
+            lager:error("Terminal '~p': failed to log in: ~p", [TName, Error]),
+            {noreply, login_if_needed(NewState)}
+    end;
 
 handle_cast(Data, State) ->
     lager:debug("Unexpected cast received: ~p", [Data]),
@@ -142,7 +166,7 @@ handle_info({tcp, Socket, RawData}, State=#state{socket=Socket, terminal=Termina
     Data = parse(RawData),
     lager:debug("Data received from socket: ~p", [Data]),
     NewTerminal = update_terminal_state(Data, Terminal),
-    NewState = State#state{terminal=NewTerminal},
+    NewState = login_if_needed(State#state{terminal=NewTerminal}),
     {noreply, NewState};
 
 % handle_info({tcp_error, Socket, Error}, State=#state{socket=Socket}) ->
@@ -174,7 +198,7 @@ read_response(Name, Acc, State=#state{socket=Socket, terminal=Terminal}) ->
         {ok, RawData} ->
             Data = parse(RawData),
             NewTerminal = update_terminal_state(Data, Terminal),
-            NewState = State#state{terminal=NewTerminal},
+            NewState = login_if_needed(State#state{terminal=NewTerminal}),
             case handle_response(Name, Data, Acc) of
                 noreply        -> read_response(Name, Acc, NewState);
                 {more,  Reply} -> read_response(Name, Reply, NewState);
@@ -206,7 +230,7 @@ update_terminal_state({server_status, [{id, ID}, {connected, "true"}], _}, State
     State#terminal_state{server_status=#server_status{id=list_to_integer(ID), connected=true}};
 
 update_terminal_state({server_status, [{id, ID}, {connected, "false"}], _}, State=#terminal_state{}) ->
-    erlang:exit(disconnected),
+%     erlang:exit(disconnected),
     State#terminal_state{server_status=#server_status{id=list_to_integer(ID), connected=false}};
 
 update_terminal_state({server_status, [{connected, "error"}], _}, State=#terminal_state{}) ->
@@ -620,5 +644,28 @@ open_terminal({Port, _}) ->
 
 open_socket(Acceptor) -> open_socket(Acceptor, 5000).
 open_socket({_, LSocket}, Timeout) -> gen_tcp:accept(LSocket, Timeout).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+login_if_needed(State=#state{login_info=#login_info{logging=true}}) -> State;
+login_if_needed(State=#state{terminal=#terminal_state{server_status=#server_status{connected=true}}}) -> State;
+login_if_needed(State=#state{terminal=#terminal_state{server_status=#server_status{connected=false}},
+        name=Name, login_info=LoginInfo=#login_info{
+        limit=Limit, period=Period, interval=Interval, history=History}}) ->
+
+    Now = trade_utils:universal_time(),
+    case lists:filter(fun(Time) -> Time > Now - Period end, History) of
+        NewHistory when length(NewHistory) < Limit ->
+            case NewHistory of
+                [] -> gen_server:cast(self(), login);
+                _  ->
+                    lager:info("Terminal '~p' will try to login after ~B seconds...", [Name, Interval]),
+                    timer:apply_after(Interval*1000, gen_server, cast, [self(), login])
+            end,
+            State#state{login_info=LoginInfo#login_info{logging=true, history=[Now|NewHistory]}};
+        _ ->
+            lager:error("Login limit exceeded for terminal '~p', stopping", [Name]),
+            exit(restart_limit_exceeded)
+    end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
