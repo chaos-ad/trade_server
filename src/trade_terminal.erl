@@ -15,7 +15,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % -record(request, {name, args, callback}).
--record(state,   {socket, port, request_queue=queue:new(), terminal = #terminal_state{}, reply=[]}).
+-record(state, {socket, port, terminal=#terminal_state{}}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -103,7 +103,7 @@ init(Options) ->
     process_flag(trap_exit, true),
 
     {ok, Acceptor} = open_acceptor(),
-    {ok, Terminal} = open_terminal(Acceptor),
+    {ok, _} = open_terminal(Acceptor),
     {ok, Socket}   = open_socket(Acceptor),
 
     Name = proplists:get_value(name, Options),
@@ -111,7 +111,7 @@ init(Options) ->
     Host = proplists:get_value(host, Options),
     Port = proplists:get_value(port, Options),
 
-    State = #state{socket=Socket, port=Terminal},
+    State = #state{socket=Socket},
     case sync_request(login, [Name, Pass, Host, Port], State) of
         {ok, NewState}      -> {ok, NewState};
         {{error, Error}, _} -> {stop, Error}
@@ -350,32 +350,6 @@ make_request(server_status, _) ->
 make_request(gethistorydata, Args) ->
     Format = "<command id='gethistorydata' secid='~B' period='~B' count='~B' reset='~p'/>",
     io_lib:format(Format, Args).
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-acceptor_opts() ->
-    [binary,
-    {packet, 4}, {ip, {127,0,0,1}},
-    {keepalive, true}, {nodelay, true}, {reuseaddr, true}, {backlog, 1}].
-
-open_acceptor() ->
-    lager:debug("Opening acceptor..."),
-    {ok, LSocket} = gen_tcp:listen(0, acceptor_opts()),
-    {ok, Port} = inet:port(LSocket),
-    lager:debug("Acceptor opened at port ~B", [Port]),
-    {ok, {Port, LSocket}}.
-
-open_terminal({Port, _}) ->
-    {ok, TermPath} = application:get_env(terminal),
-    TermArgs = ["--host localhost --port " ++ integer_to_list(Port)],
-    lager:debug("Spawning terminal process: ~p with args ~p", [TermPath, TermArgs]),
-    TermOpts = [binary, nouse_stdio, hide, {args, TermArgs}],
-    Terminal = erlang:open_port({spawn_executable, TermPath}, TermOpts),
-    lager:debug("Terminal spawned successfully"),
-    {ok, Terminal}.
-
-open_socket(Acceptor) -> open_socket(Acceptor, 5000).
-open_socket({_, LSocket}, Timeout) -> gen_tcp:accept(LSocket, Timeout).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -620,5 +594,31 @@ parse_datetime(DateTime) ->
     DateParsed = list_to_tuple(lists:reverse(lists:map(fun list_to_integer/1, Date))),
     TimeParsed = list_to_tuple(lists:map(fun list_to_integer/1, Time)),
     {DateParsed, TimeParsed}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+acceptor_opts() ->
+    [binary,
+    {packet, 4}, {ip, {127,0,0,1}},
+    {keepalive, true}, {nodelay, true}, {reuseaddr, true}, {backlog, 1}].
+
+open_acceptor() ->
+    lager:debug("Opening acceptor..."),
+    {ok, LSocket} = gen_tcp:listen(0, acceptor_opts()),
+    {ok, Port} = inet:port(LSocket),
+    lager:debug("Acceptor opened at port ~B", [Port]),
+    {ok, {Port, LSocket}}.
+
+open_terminal({Port, _}) ->
+    {ok, TermPath} = application:get_env(terminal),
+    TermArgs = ["--host localhost --port " ++ integer_to_list(Port)],
+    lager:debug("Spawning terminal process: ~p with args ~p", [TermPath, TermArgs]),
+    TermOpts = [binary, nouse_stdio, hide, {args, TermArgs}],
+    Terminal = erlang:open_port({spawn_executable, TermPath}, TermOpts),
+    lager:debug("Terminal spawned successfully"),
+    {ok, Terminal}.
+
+open_socket(Acceptor) -> open_socket(Acceptor, 5000).
+open_socket({_, LSocket}, Timeout) -> gen_tcp:accept(LSocket, Timeout).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
