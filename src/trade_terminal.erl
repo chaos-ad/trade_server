@@ -16,7 +16,7 @@
 
 % -record(request, {name, args, callback}).
 -record(login_info, {name, pass, host, port, limit, period, interval, history=[]}).
--record(state, {name, socket, strategies, login_info, terminal=#terminal_state{}}).
+-record(state, {name, socket, strategies, strategies_pid, login_info, terminal=#terminal_state{}}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -192,6 +192,7 @@ read_response(Name, Acc, State=#state{socket=Socket, terminal=Terminal}) ->
     case recv_data(Socket) of
         {ok, RawData} ->
             Data = parse(RawData),
+            lager:debug("Got data: ~p", [Data]),
             NewState = update_state(update_terminal(Data, Terminal), State),
             case handle_response(Name, Data, Acc) of
                 noreply        -> read_response(Name, Acc, NewState);
@@ -225,8 +226,11 @@ update_state(NewTerminal, State=#state{name=Name, terminal=OldTerminal}) ->
     end,
 
     case {NewStatus#server_status.connected, OldStatus#server_status.connected} of
-        {false, true} -> lager:info("Terminal '~p': disconnected", [Name]), relogin(NewState);
-        _             -> NewState
+        {false, true} ->
+            lager:info("Terminal '~p': disconnected", [Name]),
+            relogin(stop_strategies(NewState));
+        _ ->
+            NewState
     end.
 
 update_terminal({result,[{success,_}],[]}, State=#terminal_state{}) ->
@@ -298,13 +302,6 @@ update_terminal(_Data, State) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-handle_response(_, {error, [], [Error]}, _Acc) ->
-    {reply, {error, {str, Error}}};
-
-handle_response(_, {result, [{success, "false"}], [{message, [], [Error]}]}, _Acc) ->
-%     lager:debug("Error: '~ts'", [Error]),
-    {reply, {error, {str, Error}}};
-
 handle_response(login, {server_status, [{id, _}, {connected, "true"}, {recover, "true"}], _}, _Acc) ->
     {reply, ok};
 
@@ -337,6 +334,15 @@ handle_response(gethistorydata, {candles, [{secid,_},{period,_},{status,S}], Can
     lager:debug("Last history chunk: ~B bars (status ~s)", [length(FilteredCandles), S]),
     Chunk = lists:map(fun make_record/1, FilteredCandles),
     {reply, lists:reverse(lists:concat([Chunk|Acc]))};
+
+handle_response(_, {error, [], [Error]}, _Acc) ->
+    {reply, {error, {str, Error}}};
+
+handle_response(_, {result, [{success, "false"}], [{message, [], [Error]}]}, _Acc) ->
+    {reply, {error, {str, Error}}};
+
+handle_response(_, {server_status, [{id, _}, {connected, "false"}], _}, _Acc) ->
+    {reply, {error, not_connected}};
 
 handle_response(_Op, _Data, _Acc) ->
 %     lager:debug("Operation: ~p, skipped data: ~p", [_Op, _Data]),
@@ -677,4 +683,11 @@ relogin(State=#state{name=Name, login_info=LoginInfo=#login_info{
     end.
 
 start_strategies(State=#state{name=Name, strategies=Strategies}) ->
-    {ok, _} = trade_strategy_mgr:start_link(Name, Strategies), State.
+    lager:info("Starting strategies for terminal '~p'...", [Name]),
+    {ok, Pid} = trade_strategy_mgr:start_link(Name, Strategies),
+    State#state{strategies_pid=Pid}.
+
+stop_strategies(State=#state{name=Name, strategies_pid=Pid}) ->
+    lager:info("Stopping strategies for terminal '~p'...", [Name]),
+    exit(Pid, normal),
+    State#state{strategies_pid=undefined}.

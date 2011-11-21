@@ -19,7 +19,6 @@ start_link(Name, Strategies) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 init({Name, Strategies}) ->
-    lager:info("Starting strategies for terminal '~p'...", [Name]),
     {ok, { {one_for_one, 5, 10},
         lists:map(fun(S) -> child_spec(Name, S) end, Strategies)
     } }.
