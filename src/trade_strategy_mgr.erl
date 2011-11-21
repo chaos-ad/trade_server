@@ -19,17 +19,17 @@ start_link(Name, Strategies) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 init({Name, Strategies}) ->
-    lager:info("Starting strategies for terminal '~p': ~p", [Name, Strategies]),
+    lager:info("Starting strategies for terminal '~p'...", [Name]),
     {ok, { {one_for_one, 5, 10},
         lists:map(fun(S) -> child_spec(Name, S) end, Strategies)
     } }.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-child_spec(Name, {Strategy, Options}) ->
-    StartFunc = {Strategy, start_link, [Name, Options]},
-    {Strategy, StartFunc, permanent, 60000, worker, [Strategy]};
+child_spec(Account, {StrategyName, StrategyModule, Options}) ->
+    StartFunc = {StrategyModule, start_link, [StrategyName, Account, Options]},
+    {StrategyName , StartFunc, permanent, 60000, worker, [StrategyModule]};
 
-child_spec(Name, Strategy) ->
-    StartFunc = {Strategy, start_link, [Name]},
-    {Strategy, StartFunc, permanent, 60000, worker, [Strategy]}.
+child_spec(Account, {StrategyName, StrategyModule}) ->
+    StartFunc = {StrategyModule, start_link, [StrategyName, Account]},
+    {StrategyName, StartFunc, permanent, 60000, worker, [StrategyModule]}.

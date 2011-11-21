@@ -75,13 +75,13 @@ new_order(Pid, Mode, Market, Security, Amount) ->
 cancel_order(Pid, TransactionID) ->
     send_sync_request(Pid, cancelorder, [TransactionID]).
 
-get_history_data(Pid, Market, Security, Period, Bars) ->
-    get_history_data(Pid, Market, Security, Period, Bars, true).
+get_history(Pid, Market, Security, Period, Bars) ->
+    get_history(Pid, Market, Security, Period, Bars, true).
 
-get_history_data(Pid, Market, Security, Period, Bars, New) ->
-    get_history_data(Pid, Market, Security, Period, Bars, New, 10000).
+get_history(Pid, Market, Security, Period, Bars, New) ->
+    get_history(Pid, Market, Security, Period, Bars, New, 10000).
 
-get_history_data(Pid, Market, Security, Period, Bars, New, Timeout) ->
+get_history(Pid, Market, Security, Period, Bars, New, Timeout) ->
     Terminal    = get_state(Pid),
     PeriodID    = get_period_id(Period, Terminal),
     SecurityID  = get_security_id(Market, Security, Terminal),
@@ -336,7 +336,7 @@ handle_response(gethistorydata, {candles, [{secid,_},{period,_},{status,S}], Can
     FilteredCandles = lists:filter(fun({candle,_,_}) -> true; (_) -> false end, Candles),
     lager:debug("Last history chunk: ~B bars (status ~s)", [length(FilteredCandles), S]),
     Chunk = lists:map(fun make_record/1, FilteredCandles),
-    {reply, lists:concat(lists:reverse([Chunk|Acc]))};
+    {reply, lists:reverse(lists:concat([Chunk|Acc]))};
 
 handle_response(_Op, _Data, _Acc) ->
 %     lager:debug("Operation: ~p, skipped data: ~p", [_Op, _Data]),
