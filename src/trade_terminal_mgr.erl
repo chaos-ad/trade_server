@@ -44,7 +44,6 @@ del_account(Account) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 init([]) ->
-    lager:debug("Starting trade terminal manager..."),
     {ok, Accounts} = application:get_env(accounts),
     RestartStrategy = {one_for_one, 2, 600},
     Children = lists:map(fun child_spec/1, Accounts),

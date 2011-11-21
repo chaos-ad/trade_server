@@ -15,8 +15,8 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % -record(request, {name, args, callback}).
--record(login_info, {logging, name, pass, host, port, limit, period, interval, history=[]}).
--record(state, {name, socket, login_info, terminal=#terminal_state{}}).
+-record(login_info, {name, pass, host, port, limit, period, interval, history=[]}).
+-record(state, {name, socket, strategies, login_info, terminal=#terminal_state{}}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -101,7 +101,7 @@ send_sync_request(Pid, Request, Args, Timeout) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 init({Name, Options}) ->
-    process_flag(trap_exit, true),
+%     process_flag(trap_exit, true),
 
     lager:info("Starting terminal '~p'...", [Name]),
     {ok, Acceptor} = open_acceptor(),
@@ -112,6 +112,7 @@ init({Name, Options}) ->
     #state{
         name=Name,
         socket=Socket,
+        strategies   = proplists:get_value(strategies, Options),
         login_info=#login_info{
             name     = proplists:get_value(name, Options),
             pass     = proplists:get_value(pass, Options),
@@ -123,8 +124,8 @@ init({Name, Options}) ->
     }},
 
     lager:info("Terminal '~p' started: ~p", [Name, self()]),
-
-    {ok, login_if_needed(State)}.
+    schedule_login(),
+    {ok, State}.
 
 handle_call({stop, Reason}, _, State) ->
     {stop, Reason, ok, State};
@@ -140,22 +141,18 @@ handle_call(Data, {From, _}, State) ->
     lager:debug("Unexpected call received from ~p: ~p", [From, Data]),
     {reply, {error, invalid_request}, State}.
 
-handle_cast(login, State=#state{name=TName, login_info=LoginInfo=#login_info{
-        name=Name, pass=Pass, host=Host, port=Port}}) ->
-
-    lager:info("Terminal '~p': logging...", [TName]),
-    {Result, State1} = sync_request(login, [Name, Pass, Host, Port], State),
-    NewState = State1#state{login_info=LoginInfo#login_info{logging=false}},
-    case Result of
-        ok ->
-            lager:info("Terminal '~p': logged in", [TName]),
-            {noreply, NewState};
-        {error, {str, Error}} ->
-            lager:error("Terminal '~p': failed to log in: \"~ts\"", [TName, Error]),
-            {noreply, login_if_needed(NewState)};
-        {error, Error} ->
-            lager:error("Terminal '~p': failed to log in: ~p", [TName, Error]),
-            {noreply, login_if_needed(NewState)}
+handle_cast(login, State=#state{name=Name, login_info=#login_info{name=Login, pass=Pass, host=Host, port=Port}}) ->
+    lager:info("Terminal '~p': connecting...", [Name]),
+    case sync_request(login, [Login, Pass, Host, Port], State) of
+        {ok, NewState} ->
+            lager:info("Terminal '~p': connected", [Name]),
+            {noreply, start_strategies(NewState)};
+        {{error, {str, Error}}, NewState} ->
+            lager:error("Terminal '~p': failed to connect: \"~ts\"", [Name, Error]),
+            {noreply, relogin(NewState)};
+        {{error, Error}, NewState} ->
+            lager:error("Terminal '~p': failed to connect: ~p", [Name, Error]),
+            {noreply, relogin(NewState)}
     end;
 
 handle_cast(Data, State) ->
@@ -165,9 +162,7 @@ handle_cast(Data, State) ->
 handle_info({tcp, Socket, RawData}, State=#state{socket=Socket, terminal=Terminal}) ->
     Data = parse(RawData),
     lager:debug("Data received from socket: ~p", [Data]),
-    NewTerminal = update_terminal_state(Data, Terminal),
-    NewState = login_if_needed(State#state{terminal=NewTerminal}),
-    {noreply, NewState};
+    {noreply, update_state(update_terminal(Data, Terminal), State)};
 
 % handle_info({tcp_error, Socket, Error}, State=#state{socket=Socket}) ->
 %     lager:debug("Terminal ~p: closed with reason ~p", [self(), Error]),
@@ -197,8 +192,7 @@ read_response(Name, Acc, State=#state{socket=Socket, terminal=Terminal}) ->
     case recv_data(Socket) of
         {ok, RawData} ->
             Data = parse(RawData),
-            NewTerminal = update_terminal_state(Data, Terminal),
-            NewState = login_if_needed(State#state{terminal=NewTerminal}),
+            NewState = update_state(update_terminal(Data, Terminal), State),
             case handle_response(Name, Data, Acc) of
                 noreply        -> read_response(Name, Acc, NewState);
                 {more,  Reply} -> read_response(Name, Reply, NewState);
@@ -220,27 +214,40 @@ send_request(Request, Socket) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-update_terminal_state({result,[{success,_}],[]}, State=#terminal_state{}) ->
+update_state(NewTerminal, State=#state{name=Name, terminal=OldTerminal}) ->
+    NewState  = State#state{terminal=NewTerminal},
+    OldStatus = OldTerminal#terminal_state.server_status,
+    NewStatus = NewTerminal#terminal_state.server_status,
+
+    case {NewStatus#server_status.recover, OldStatus#server_status.recover} of
+        {false, true} -> lager:info("Terminal '~p': recovering connection...", [Name]);
+        _             -> ok
+    end,
+
+    case {NewStatus#server_status.connected, OldStatus#server_status.connected} of
+        {false, true} -> lager:info("Terminal '~p': disconnected", [Name]), relogin(NewState);
+        _             -> NewState
+    end.
+
+update_terminal({result,[{success,_}],[]}, State=#terminal_state{}) ->
     State; %% Ignoring result
 
-update_terminal_state({server_status, [{id, ID}, {connected, "true"}, {recover, "true"}], _}, State=#terminal_state{}) ->
+update_terminal({server_status, [{id, ID}, {connected, "true"}, {recover, "true"}], _}, State=#terminal_state{}) ->
     State#terminal_state{server_status=#server_status{id=list_to_integer(ID), connected=true, recover=true}};
 
-update_terminal_state({server_status, [{id, ID}, {connected, "true"}], _}, State=#terminal_state{}) ->
-    State#terminal_state{server_status=#server_status{id=list_to_integer(ID), connected=true}};
+update_terminal({server_status, [{id, ID}, {connected, "true"}], _}, State=#terminal_state{}) ->
+    State#terminal_state{server_status=#server_status{id=list_to_integer(ID), connected=true, recover=false}};
 
-update_terminal_state({server_status, [{id, ID}, {connected, "false"}], _}, State=#terminal_state{}) ->
-%     erlang:exit(disconnected),
-    State#terminal_state{server_status=#server_status{id=list_to_integer(ID), connected=false}};
+update_terminal({server_status, [{id, ID}, {connected, "false"}], _}, State=#terminal_state{}) ->
+    State#terminal_state{server_status=#server_status{id=list_to_integer(ID), connected=false, recover=false}};
 
-update_terminal_state({server_status, [{connected, "error"}], _}, State=#terminal_state{}) ->
-%     erlang:exit(disconnected),
-    State#terminal_state{server_status=#server_status{connected=false}};
+update_terminal({server_status, [{connected, "error"}], _}, State=#terminal_state{}) ->
+    State#terminal_state{server_status=#server_status{connected=false, recover=false}};
 
-update_terminal_state({client, [{id,ID},{remove,"true"}], []}, State=#terminal_state{clients=Clients}) ->
+update_terminal({client, [{id,ID},{remove,"true"}], []}, State=#terminal_state{clients=Clients}) ->
     State#terminal_state{clients=lists:keydelete(ID, 2, Clients)};
 
-update_terminal_state({client, [{id, ID},{remove,"false"}], Args}, State=#terminal_state{clients=Clients}) ->
+update_terminal({client, [{id, ID},{remove,"false"}], Args}, State=#terminal_state{clients=Clients}) ->
     Currency = get_value(currency, Args),
     Type     = get_value(atom, type, Args),
     Client   =
@@ -259,33 +266,33 @@ update_terminal_state({client, [{id, ID},{remove,"false"}], Args}, State=#termin
     end,
     State#terminal_state{clients=[Client|lists:keydelete(ID, 2, Clients)]};
 
-update_terminal_state({markets,[],MarketList}, State=#terminal_state{}) ->
+update_terminal({markets,[],MarketList}, State=#terminal_state{}) ->
     State#terminal_state{markets=lists:map(fun make_record/1, MarketList)};
 
-update_terminal_state({securities,[],SecurityList}, State=#terminal_state{securities=Securities}) ->
+update_terminal({securities,[],SecurityList}, State=#terminal_state{securities=Securities}) ->
     NewSecurities = lists:map(fun make_record/1, SecurityList),
     UpdFn = fun(Sec, Result) ->  lists:keystore(Sec#security.secid, 2, Result, Sec) end,
     State#terminal_state{securities=lists:foldl(UpdFn, Securities, NewSecurities)};
 
-update_terminal_state({candlekinds,[],CandleList}, State=#terminal_state{}) ->
+update_terminal({candlekinds,[],CandleList}, State=#terminal_state{}) ->
     State#terminal_state{candlekinds=lists:map(fun make_record/1, CandleList)};
 
-update_terminal_state({positions,[],PositionList}, State=#terminal_state{positions=Positions}) ->
+update_terminal({positions,[],PositionList}, State=#terminal_state{positions=Positions}) ->
     NewPositions = lists:map(fun make_record/1, PositionList),
     State#terminal_state{positions=update_positions(NewPositions, Positions)};
 
-update_terminal_state({overnight,[{status,Overnight}],[]}, State=#terminal_state{}) ->
+update_terminal({overnight,[{status,Overnight}],[]}, State=#terminal_state{}) ->
     State#terminal_state{overnight=list_to_atom(Overnight)};
 
-update_terminal_state({trades, [], TradeList}, State=#terminal_state{trades=Trades}) ->
+update_terminal({trades, [], TradeList}, State=#terminal_state{trades=Trades}) ->
     NewTrades = lists:map(fun make_record/1, TradeList),
     State#terminal_state{trades=update_trades(NewTrades, Trades)};
 
-update_terminal_state({orders, [], OrderList}, State=#terminal_state{orders=Orders}) ->
+update_terminal({orders, [], OrderList}, State=#terminal_state{orders=Orders}) ->
     NewOrders = lists:map(fun make_record/1, OrderList),
     State#terminal_state{orders=update_orders(NewOrders, Orders)};
 
-update_terminal_state(_Data, State) ->
+update_terminal(_Data, State) ->
 %     lager:debug("Data ignored: ~p", [_Data]),
     State.
 
@@ -647,25 +654,27 @@ open_socket({_, LSocket}, Timeout) -> gen_tcp:accept(LSocket, Timeout).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-login_if_needed(State=#state{login_info=#login_info{logging=true}}) -> State;
-login_if_needed(State=#state{terminal=#terminal_state{server_status=#server_status{connected=true}}}) -> State;
-login_if_needed(State=#state{terminal=#terminal_state{server_status=#server_status{connected=false}},
-        name=Name, login_info=LoginInfo=#login_info{
+schedule_login() ->
+    gen_server:cast(self(), login).
+
+schedule_login(Time) ->
+    timer:apply_after(Time*1000, gen_server, cast, [self(), login]).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+relogin(State=#state{name=Name, login_info=LoginInfo=#login_info{
         limit=Limit, period=Period, interval=Interval, history=History}}) ->
 
     Now = trade_utils:universal_time(),
     case lists:filter(fun(Time) -> Time > Now - Period end, History) of
         NewHistory when length(NewHistory) < Limit ->
-            case NewHistory of
-                [] -> gen_server:cast(self(), login);
-                _  ->
-                    lager:info("Terminal '~p' will try to login after ~B seconds...", [Name, Interval]),
-                    timer:apply_after(Interval*1000, gen_server, cast, [self(), login])
-            end,
-            State#state{login_info=LoginInfo#login_info{logging=true, history=[Now|NewHistory]}};
+            schedule_login(Interval),
+            lager:info("Terminal '~p': reconnecting in ~B seconds...", [Name, Interval]),
+            State#state{login_info=LoginInfo#login_info{history=[Now|NewHistory]}};
         _ ->
-            lager:error("Login limit exceeded for terminal '~p', stopping", [Name]),
+            lager:error("Terminal '~p': reconnect limit exceeded", [Name]),
             exit(restart_limit_exceeded)
     end.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+start_strategies(State=#state{name=Name, strategies=Strategies}) ->
+    {ok, _} = trade_strategy_mgr:start_link(Name, Strategies), State.
