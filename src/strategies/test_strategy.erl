@@ -41,10 +41,16 @@ handle_cast(_, State) ->
 
 handle_info(update, State=#state{name=Name, account=Account, symbol=Symbol, period=Period, depth=Depth, update=Update}) ->
     lager:debug("Strategy '~p': updating...", [Name]),
-    Data = trade_terminal:get_history(Account, 1, Symbol, Period, Depth, true, infinity),
-    lager:debug("Strategy '~p': done [~B bars]", [Name, length(Data)]),
-    erlang:send_after(Update*1000, self(), update),
-    {noreply, State};
+    case trade_terminal:get_history(Account, 1, Symbol, Period, Depth, true, infinity) of
+        {ok, Data} ->
+            lager:debug("Strategy '~p': done [~B bars]", [Name, length(Data)]),
+            erlang:send_after(Update*1000, self(), update),
+            {noreply, State};
+        {error, Error} ->
+            lager:debug("Strategy '~p': error: ~p", [Name, Error]),
+            erlang:send_after(Update*1000, self(), update),
+            {noreply, State}
+    end;
 
 handle_info(_, State) ->
     {noreply, State}.

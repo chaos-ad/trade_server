@@ -87,6 +87,22 @@ get_history(Pid, Market, Security, Period, Bars, New, Timeout) ->
     SecurityID  = get_security_id(Market, Security, Terminal),
     send_sync_request(Pid, gethistorydata, [SecurityID, PeriodID, Bars, New], Timeout).
 
+subscribe(Pid, List) ->
+    subscribe(Pid, List, infinity).
+
+subscribe(Pid, List, Timeout) ->
+    T = get_state(Pid),
+    SecList = lists:map(fun({Mode, M, S}) -> {Mode, get_security_id(M, S, T)} end, List),
+    send_sync_request(Pid, subscribe, SecList, Timeout).
+
+unsubscribe(Pid, List) ->
+    unsubscribe(Pid, List, infinity).
+
+unsubscribe(Pid, List, Timeout) ->
+    T = get_state(Pid),
+    SecList = lists:map(fun({Mode, M, S}) -> {Mode, get_security_id(M, S, T)} end, List),
+    send_sync_request(Pid, unsubscribe, SecList, Timeout).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 send_sync_request(Pid, Request) ->
@@ -297,7 +313,7 @@ update_terminal({orders, [], OrderList}, State=#terminal_state{orders=Orders}) -
     State#terminal_state{orders=update_orders(NewOrders, Orders)};
 
 update_terminal(_Data, State) ->
-%     lager:debug("Data ignored: ~p", [_Data]),
+    lager:debug("Data ignored: ~p", [_Data]),
     State.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -333,7 +349,13 @@ handle_response(gethistorydata, {candles, [{secid,_},{period,_},{status,S}], Can
     FilteredCandles = lists:filter(fun({candle,_,_}) -> true; (_) -> false end, Candles),
     lager:debug("Last history chunk: ~B bars (status ~s)", [length(FilteredCandles), S]),
     Chunk = lists:map(fun make_record/1, FilteredCandles),
-    {reply, lists:reverse(lists:concat([Chunk|Acc]))};
+    {reply, {ok, lists:reverse(lists:concat([Chunk|Acc]))}};
+
+handle_response(subscribe, {result,[{success,"true"}],[]}, _) ->
+    {reply, ok};
+
+handle_response(unsubscribe, {result,[{success,"true"}],[]}, _) ->
+    {reply, ok};
 
 handle_response(_, {error, [], [Error]}, _Acc) ->
     {reply, {error, {str, Error}}};
@@ -345,7 +367,7 @@ handle_response(_, {server_status, [{id, _}, {connected, "false"}], _}, _Acc) ->
     {reply, {error, not_connected}};
 
 handle_response(_Op, _Data, _Acc) ->
-%     lager:debug("Operation: ~p, skipped data: ~p", [_Op, _Data]),
+    lager:debug("Operation: ~p, skipped data: ~p", [_Op, _Data]),
     noreply.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -374,7 +396,7 @@ make_request(login, Args) ->
     Format= "<command id='connect'>"
                 "<login>~s</login><password>~s</password><host>~s</host><port>~B</port>"
                 "<logsdir>./logs/</logsdir><loglevel>0</loglevel>"
-                "<rqdelay>500</rqdelay><session_timeout>25</session_timeout><request_timeout>20</request_timeout>"
+                "<rqdelay>500</rqdelay><session_timeout>7</session_timeout><request_timeout>5</request_timeout>"
             "</command>",
     io_lib:format(Format, Args);
 
@@ -386,7 +408,32 @@ make_request(server_status, _) ->
 
 make_request(gethistorydata, Args) ->
     Format = "<command id='gethistorydata' secid='~B' period='~B' count='~B' reset='~p'/>",
-    io_lib:format(Format, Args).
+    io_lib:format(Format, Args);
+
+make_request(subscribe, Args) ->
+    Result =
+    "<command id='subscribe'>" ++
+        make_secids(quotes, Args) ++
+        make_secids(alltrades, Args) ++
+        make_secids(quotations, Args) ++
+    "</command>",
+    io:format("Query: ~s~n", [Result]),
+    Result;
+
+make_request(unsubscribe, Args) ->
+    Result =
+    "<command id='unsubscribe'>" ++
+        make_secids(quotes, Args) ++
+        make_secids(alltrades, Args) ++
+        make_secids(quotations, Args) ++
+    "</command>",
+    io:format("Query: ~s~n", [Result]),
+    Result.
+
+make_secid(ID) -> "<secid>" ++ integer_to_list(ID) ++ "</secid>".
+make_secids(Mode, List) ->
+    Secs = lists:map(fun({M, ID}) when M =:= Mode -> make_secid(ID); (_) -> [] end, List),
+    lists:flatten(io_lib:format("<~p>~s</~p>", [Mode, Secs, Mode])).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -682,12 +729,14 @@ relogin(State=#state{name=Name, login_info=LoginInfo=#login_info{
             exit(restart_limit_exceeded)
     end.
 
-start_strategies(State=#state{name=Name, strategies=Strategies}) ->
+start_strategies(State=#state{strategies=[]}) -> State;
+start_strategies(State=#state{strategies=Strategies, name=Name}) ->
     lager:info("Starting strategies for terminal '~p'...", [Name]),
     {ok, Pid} = trade_strategy_mgr:start_link(Name, Strategies),
     State#state{strategies_pid=Pid}.
 
-stop_strategies(State=#state{name=Name, strategies_pid=Pid}) ->
+stop_strategies(State=#state{strategies_pid=undefined}) -> State;
+stop_strategies(State=#state{strategies_pid=Pid, name=Name}) ->
     lager:info("Stopping strategies for terminal '~p'...", [Name]),
     exit(Pid, normal),
     State#state{strategies_pid=undefined}.
