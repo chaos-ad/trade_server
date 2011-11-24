@@ -16,12 +16,12 @@
 
 % -record(request, {name, args, callback}).
 -record(login_info, {name, pass, host, port, limit, period, interval, history=[]}).
--record(state, {name, socket, strategies, strategies_pid, login_info, terminal=#terminal_state{}}).
+-record(state, {account, socket, strategies, strategies_pid, login_info, terminal=#terminal_state{}}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-start_link(Name, Options) ->
-    gen_server:start_link({local, Name}, ?MODULE, {Name, Options}, []).
+start_link(Account, Options) ->
+    gen_server:start_link({local, Account}, ?MODULE, {Account, Options}, []).
 
 stop(Pid) ->
     stop(Pid, normal).
@@ -87,6 +87,14 @@ get_history(Pid, Market, Security, Period, Bars, New, Timeout) ->
     SecurityID  = get_security_id(Market, Security, Terminal),
     send_sync_request(Pid, gethistorydata, [SecurityID, PeriodID, Bars, New], Timeout).
 
+subscribe(Pid, Mode, List) ->
+    subscribe(Pid, Mode, List, infinity).
+
+subscribe(Pid, Mode, List, Timeout) ->
+    Securities = get_securities(Pid),
+    SecIDList  = [ get_security_id(Market, Sec, Securities) || {Market, Sec} <- List ],
+    send_sync_request(Pid, subscribe, [Mode, SecIDList], Timeout).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 send_sync_request(Pid, Request) ->
@@ -100,19 +108,19 @@ send_sync_request(Pid, Request, Args, Timeout) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-init({Name, Options}) ->
+init({Account, Options}) ->
 %     process_flag(trap_exit, true),
 
-    lager:info("Starting terminal '~p'...", [Name]),
+    lager:info("Starting terminal '~p'...", [Account]),
     {ok, Acceptor} = open_acceptor(),
     {ok, _} = open_terminal(Acceptor),
     {ok, Socket}   = open_socket(Acceptor),
 
     State =
     #state{
-        name=Name,
-        socket=Socket,
-        strategies   = proplists:get_value(strategies, Options),
+        socket       = Socket,
+        account      = Account,
+        strategies   = proplists:get_value(strategies, Options, []),
         login_info=#login_info{
             name     = proplists:get_value(name, Options),
             pass     = proplists:get_value(pass, Options),
@@ -123,7 +131,7 @@ init({Name, Options}) ->
             interval = proplists:get_value(login_interval, Options, 5)
     }},
 
-    lager:info("Terminal '~p' started: ~p", [Name, self()]),
+    lager:info("Terminal '~p' started: ~p", [Account, self()]),
     schedule_login(),
     {ok, State}.
 
@@ -141,17 +149,17 @@ handle_call(Data, {From, _}, State) ->
     lager:debug("Unexpected call received from ~p: ~p", [From, Data]),
     {reply, {error, invalid_request}, State}.
 
-handle_cast(login, State=#state{name=Name, login_info=#login_info{name=Login, pass=Pass, host=Host, port=Port}}) ->
-    lager:info("Terminal '~p': connecting...", [Name]),
-    case sync_request(login, [Login, Pass, Host, Port], State) of
+handle_cast(login, State=#state{account=Account, login_info=#login_info{name=Name, pass=Pass, host=Host, port=Port}}) ->
+    lager:info("Terminal '~p': connecting...", [Account]),
+    case sync_request(login, [Name, Pass, Host, Port], State) of
         {ok, NewState} ->
-            lager:info("Terminal '~p': connected", [Name]),
+            lager:info("Terminal '~p': connected", [Account]),
             {noreply, start_strategies(NewState)};
         {{error, {str, Error}}, NewState} ->
-            lager:error("Terminal '~p': failed to connect: \"~ts\"", [Name, Error]),
+            lager:error("Terminal '~p': failed to connect: \"~ts\"", [Account, Error]),
             {noreply, relogin(NewState)};
         {{error, Error}, NewState} ->
-            lager:error("Terminal '~p': failed to connect: ~p", [Name, Error]),
+            lager:error("Terminal '~p': failed to connect: ~p", [Account, Error]),
             {noreply, relogin(NewState)}
     end;
 
@@ -164,13 +172,11 @@ handle_info({tcp, Socket, RawData}, State=#state{socket=Socket, terminal=Termina
     lager:debug("Data received from socket: ~p", [Data]),
     {noreply, update_state(update_terminal(Data, Terminal), State)};
 
-% handle_info({tcp_error, Socket, Error}, State=#state{socket=Socket}) ->
-%     lager:debug("Terminal ~p: closed with reason ~p", [self(), Error]),
-%     {stop, {shutdown, {error, Error}}, State};
-%
-% handle_info({tcp_closed, Socket}, State=#state{socket=Socket}) ->
-%     lager:debug("Terminal ~p: closed", [self()]),
-%     {stop, {shutdown, ssl_closed}, State};
+handle_info({tcp_error, Socket, Error}, State=#state{socket=Socket}) ->
+    {stop, {shutdown, {error, Error}}, State};
+
+handle_info({tcp_closed, Socket}, State=#state{socket=Socket}) ->
+    {stop, {shutdown, tcp_closed}, State};
 
 handle_info(Data, State) ->
     lager:debug("Unexpected info received: ~p", [Data]),
@@ -188,14 +194,14 @@ sync_request(Name, Args, State=#state{socket=Socket}) ->
     ok = send_request(make_request(Name, Args), Socket),
     read_response(Name, [], State).
 
-read_response(Name, Acc, State=#state{socket=Socket, terminal=Terminal}) ->
+read_response(Name, Result, State=#state{socket=Socket, terminal=Terminal}) ->
     case recv_data(Socket) of
         {ok, RawData} ->
             Data = parse(RawData),
             lager:debug("Got data: ~p", [Data]),
             NewState = update_state(update_terminal(Data, Terminal), State),
-            case handle_response(Name, Data, Acc) of
-                noreply        -> read_response(Name, Acc, NewState);
+            case handle_response(Name, Data, Result) of
+                noreply        -> read_response(Name, Result, NewState);
                 {more,  Reply} -> read_response(Name, Reply, NewState);
                 {reply, Reply} -> {Reply, NewState}
             end;
@@ -215,19 +221,19 @@ send_request(Request, Socket) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-update_state(NewTerminal, State=#state{name=Name, terminal=OldTerminal}) ->
+update_state(NewTerminal, State=#state{account=Account, terminal=OldTerminal}) ->
     NewState  = State#state{terminal=NewTerminal},
     OldStatus = OldTerminal#terminal_state.server_status,
     NewStatus = NewTerminal#terminal_state.server_status,
 
     case {NewStatus#server_status.recover, OldStatus#server_status.recover} of
-        {false, true} -> lager:info("Terminal '~p': recovering connection...", [Name]);
+        {false, true} -> lager:info("Terminal '~p': recovering connection...", [Account]);
         _             -> ok
     end,
 
     case {NewStatus#server_status.connected, OldStatus#server_status.connected} of
         {false, true} ->
-            lager:info("Terminal '~p': disconnected", [Name]),
+            lager:info("Terminal '~p': disconnected", [Account]),
             relogin(stop_strategies(NewState));
         _ ->
             NewState
@@ -345,13 +351,17 @@ handle_response(_, {server_status, [{id, _}, {connected, "false"}], _}, _Acc) ->
     {reply, {error, not_connected}};
 
 handle_response(_Op, _Data, _Acc) ->
-%     lager:debug("Operation: ~p, skipped data: ~p", [_Op, _Data]),
+    lager:debug("Operation: ~p, skipped data: ~p", [_Op, _Data]),
     noreply.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 neworder_mode(buy) -> "B";
 neworder_mode(sell) -> "S".
+
+subscribe_mode(quotes) -> "<quotes>~p</quotes>";
+subscribe_mode(alltrades) -> "<alltrades>~p</alltrades>";
+subscribe_mode(quotations) -> "<quotations>~p</quotations>".
 
 make_request(neworder, [Mode, SecurityID, ClientID, Amount]) ->
     Format =
@@ -386,7 +396,15 @@ make_request(server_status, _) ->
 
 make_request(gethistorydata, Args) ->
     Format = "<command id='gethistorydata' secid='~B' period='~B' count='~B' reset='~p'/>",
-    io_lib:format(Format, Args).
+    io_lib:format(Format, Args);
+
+make_request(subscribe, [Mode, SecList]) ->
+    Format = "<command id='subscribe'>~p</command>",
+    Data = lists:concat([lists:io_lib(subscribe_mode(Mode), [ID]) || ID <- SecList]),
+    lager:info("Subscribe data: ~p", [Data]),
+    Result = io_lib:format(Format, [Data]),
+    lager:info("Subscribe str: ~p", [Result]),
+    Result.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -399,7 +417,9 @@ get_period_id(Period, #terminal_state{candlekinds=Candles}) ->
         false          -> exit(invalid_period)
     end.
 
-get_security_id(Market, Security, #terminal_state{securities=Securities}) -> get_security_id(Market, Security, Securities);
+get_security_id(Market, Security, #terminal_state{securities=Securities}) ->
+    get_security_id(Market, Security, Securities);
+
 get_security_id(Market, Security, Securities) when is_list(Securities) ->
     case lists:keytake(Security, 5, Securities) of
         {value, #security{secid=ID, market=Market}, _} -> ID;
@@ -668,26 +688,28 @@ schedule_login(Time) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-relogin(State=#state{name=Name, login_info=LoginInfo=#login_info{
+relogin(State=#state{account=Account, login_info=LoginInfo=#login_info{
         limit=Limit, period=Period, interval=Interval, history=History}}) ->
 
     Now = trade_utils:universal_time(),
     case lists:filter(fun(Time) -> Time > Now - Period end, History) of
         NewHistory when length(NewHistory) < Limit ->
             schedule_login(Interval),
-            lager:info("Terminal '~p': reconnecting in ~B seconds...", [Name, Interval]),
+            lager:info("Terminal '~p': reconnecting in ~B seconds...", [Account, Interval]),
             State#state{login_info=LoginInfo#login_info{history=[Now|NewHistory]}};
         _ ->
-            lager:error("Terminal '~p': reconnect limit exceeded", [Name]),
+            lager:error("Terminal '~p': reconnect limit exceeded", [Account]),
             exit(restart_limit_exceeded)
     end.
 
-start_strategies(State=#state{name=Name, strategies=Strategies}) ->
-    lager:info("Starting strategies for terminal '~p'...", [Name]),
-    {ok, Pid} = trade_strategy_mgr:start_link(Name, Strategies),
+start_strategies(State=#state{strategies_pid=undefined, strategies=[]}) -> State;
+start_strategies(State=#state{strategies_pid=undefined, strategies=Strategies, account=Account}) ->
+    lager:info("Starting strategies for terminal '~p'...", [Account]),
+    {ok, Pid} = trade_strategy_mgr:start_link(Account, Strategies),
     State#state{strategies_pid=Pid}.
 
-stop_strategies(State=#state{name=Name, strategies_pid=Pid}) ->
-    lager:info("Stopping strategies for terminal '~p'...", [Name]),
+stop_strategies(State=#state{strategies_pid=undefined}) -> State;
+stop_strategies(State=#state{strategies_pid=Pid, account=Account}) ->
+    lager:info("Stopping strategies for terminal '~p'...", [Account]),
     exit(Pid, normal),
     State#state{strategies_pid=undefined}.

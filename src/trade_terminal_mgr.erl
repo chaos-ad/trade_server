@@ -44,9 +44,8 @@ del_account(Account) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 init([]) ->
-    {ok, Accounts} = application:get_env(accounts),
     RestartStrategy = {one_for_one, 2, 600},
-    Children = lists:map(fun child_spec/1, Accounts),
+    Children = lists:map(fun child_spec/1, get_accounts()),
     {ok, {RestartStrategy, Children}}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -56,3 +55,9 @@ child_spec({Name, Options}) ->
     {Name, StartFunc, permanent, 60000, worker, [trade_terminal]}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+get_accounts() ->
+    case application:get_env(accounts) of
+        {ok, Accounts} -> Accounts;
+        _              -> []
+    end.
