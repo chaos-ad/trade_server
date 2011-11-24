@@ -43,21 +43,29 @@ to_datetime({{Year, Month, Day}, {Hour, Min, Sec}}) ->
     {{Year, Month, Day}, {Hour, Min, Sec}}.
 
 
-to_datestr(Timestamp) when is_integer(Timestamp) ->
-    to_datestr(to_datetime(Timestamp));
+to_datetimestr({{Year, Month, Day}, {Hour, Min, Sec}}) ->
+    lists:flatten(io_lib:format("~4.10.0B-~2.10.0B-~2.10.0B ~2.10.0B:~2.10.0B:~2.10.0B", [Year, Month, Day, Hour, Min, Sec]));
+
+to_datetimestr(Value) ->
+    to_datetimestr(to_datetime(Value)).
+
+
+to_date(Value) ->
+    element(1, to_datetime(Value)).
+
 
 to_datestr({Year, Month, Day}) ->
-    to_datestr({{Year, Month, Day}, {0, 0, 0}});
+    lists:flatten(io_lib:format("~4.10.0B-~2.10.0B-~2.10.0B", [Year, Month, Day]));
 
-to_datestr({{Year, Month, Day}, {Hour, Min, Sec}}) ->
-    lists:flatten(io_lib:format("~4.10.0B-~2.10.0B-~2.10.0B ~2.10.0B:~2.10.0B:~2.10.0B", [Year, Month, Day, Hour, Min, Sec])).
+to_datestr(Value) ->
+    to_datestr(to_date(Value)).
 
 
 local_time() ->
-    to_unixtime(calendar:datetime_to_gregorian_seconds(calendar:local_time())).
+    to_unixtime(calendar:local_time()).
 
 universal_time() ->
-    to_unixtime(calendar:datetime_to_gregorian_seconds(calendar:universal_time())).
+    to_unixtime(calendar:universal_time()).
 
 add_days(Point, Days) -> add_duration(Point, {Days, 0, 0, 0}).
 add_hours(Point, Hours) -> add_duration(Point, {Hours, 0, 0}).

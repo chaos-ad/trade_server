@@ -7,6 +7,8 @@
   {applications, [
                   kernel,
                   stdlib,
+                  mnesia,
+                  inets,
                   lager
                  ]},
   {mod, { trade_app, []}},

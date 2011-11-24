@@ -13,22 +13,29 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-start_link(Name, Strategies) ->
-    supervisor:start_link(?MODULE, {Name, Strategies}).
+start_link(Account, Strategies) ->
+    supervisor:start_link(?MODULE, {Account, Strategies}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-init({Name, Strategies}) ->
+init({Account, Strategies}) ->
     {ok, { {one_for_one, 5, 10},
-        lists:map(fun(S) -> child_spec(Name, S) end, Strategies)
+        lists:map(fun(S) -> child_spec(Account, S) end, Strategies)
     } }.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-child_spec(Account, {StrategyName, StrategyModule, Options}) ->
-    StartFunc = {StrategyModule, start_link, [StrategyName, Account, Options]},
-    {StrategyName , StartFunc, permanent, 60000, worker, [StrategyModule]};
+child_spec(Account, StrategyModule) when is_atom(StrategyModule) ->
+    Options = [{account, Account}],
+    StartFunc = {StrategyModule, start_link, Options},
+    {StrategyModule, StartFunc, permanent, 60000, worker, [StrategyModule]};
 
 child_spec(Account, {StrategyName, StrategyModule}) ->
-    StartFunc = {StrategyModule, start_link, [StrategyName, Account]},
-    {StrategyName, StartFunc, permanent, 60000, worker, [StrategyModule]}.
+    Options = [{name, StrategyName}, {account, Account}],
+    StartFunc = {StrategyModule, start_link, Options},
+    {StrategyName, StartFunc, permanent, 60000, worker, [StrategyModule]};
+
+child_spec(Account, {StrategyName, StrategyModule, StrategyOptions}) ->
+    Options = [{name, StrategyName}, {account, Account}] ++ StrategyOptions,
+    StartFunc = {StrategyModule, start_link, Options},
+    {StrategyName , StartFunc, permanent, 60000, worker, [StrategyModule]}.
