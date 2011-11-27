@@ -17,21 +17,6 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-create_db() ->
-    ok = mnesia:create_schema([node()]),
-    ok = mnesia:start(),
-    {atomic, ok} = mnesia:create_table(symbol,[
-        {disc_copies, [node()]},
-        {attributes, record_info(fields, symbol)},
-        {index, [code]}
-    ]),
-    {atomic, ok} = mnesia:create_table(range,[
-        {disc_copies, [node()]},
-        {attributes, record_info(fields, range)}
-    ]),
-    stopped = mnesia:stop(),
-    ok.
-
 start_link() ->
     gen_server:start_link(?SERVER, ?MODULE, [], []).
 
@@ -78,9 +63,26 @@ del_range(Symbol, Period) ->
 
 init([]) ->
     process_flag(trap_exit, true),
-    lager:info("Starting database..."),
+    case mnesia:create_schema([node()]) of
+        ok ->
+            ok = mnesia:start(),
+            lager:info("Creating database..."),
+            {atomic, ok} = mnesia:create_table(symbol,[
+                {disc_copies, [node()]},
+                {attributes, record_info(fields, symbol)},
+                {index, [code]}
+            ]),
+            {atomic, ok} = mnesia:create_table(range,[
+                {disc_copies, [node()]},
+                {attributes, record_info(fields, range)}
+            ]),
+            lager:info("Database created");
+        {error,{_,{already_exists,_}}} ->
+            lager:info("Starting database..."),
+            ok = mnesia:start(),
+            lager:info("Database started")
+    end,
     ok = mnesia:wait_for_tables([symbol, range], 30000),
-    lager:info("Database started"),
     {ok, undefined}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

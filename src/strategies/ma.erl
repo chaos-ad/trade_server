@@ -47,7 +47,9 @@ update(History, State=#state{period1=P1, period2=P2, ma1=MA1_OLD, ma2=MA2_OLD}) 
                 true  -> {sell, State#state{ma1=MA1, ma2=MA2}};
                 false -> {hold, State}
             end
-    end.
+    end;
+
+update(_, State) -> {hold, State}.
 
 stop(_) ->
     lager:debug("Strategy ~p stopped", [?MODULE]),
