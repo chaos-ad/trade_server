@@ -8,7 +8,8 @@
                   kernel,
                   stdlib,
                   inets,
-                  lager
+                  lager,
+                  trade_admin
                  ]},
   {mod, { trade_app, []}},
   {env, []}

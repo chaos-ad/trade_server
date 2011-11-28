@@ -18,7 +18,7 @@ clean-app:
 	rm -rfv erl_crash.dump
 
 distclean: clean
-	rm -rfv ebin deps log logs
+	rm -rfv ebin deps priv/db priv/logs
 
 release:
 	./rebar generate
