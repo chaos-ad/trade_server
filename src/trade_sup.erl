@@ -19,7 +19,7 @@ start_link() ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 init([]) ->
-    {ok, { {one_for_one, 1, 3200}, [
+    {ok, { {one_for_one, 5, 60}, [
         ?CHILD(trade_db),
         ?CHILD(trade_history),
         ?CHILD(trade_terminal_mgr, [], supervisor)

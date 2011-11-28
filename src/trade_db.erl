@@ -43,7 +43,9 @@ get_history(Symbol, Period, Timestamp) ->
     gen_server:call(?SERVER, {get_history, Symbol, Period, Timestamp}, infinity).
 
 get_history(Symbol, Period, From, To) ->
-    gen_server:call(?SERVER, {get_history, Symbol, Period, From, To}, infinity).
+    T1 = trade_utils:to_unixtime(From),
+    T2 = trade_utils:to_unixtime(To),
+    gen_server:call(?SERVER, {get_history, Symbol, Period, T1, T2}, infinity).
 
 del_history(Symbol, Period) ->
     gen_server:call(?SERVER, {del_history, Symbol, Period}, infinity).
@@ -53,8 +55,8 @@ del_history(Symbol, Period) ->
 get_range(Symbol, Period) ->
     gen_server:call(?SERVER, {get_range, Symbol, Period}, infinity).
 
-set_range(Symbol, Period, From, To) ->
-    gen_server:call(?SERVER, {set_range, Symbol, Period, From, To}, infinity).
+set_range(Symbol, Period, {T1, T2}) ->
+    gen_server:call(?SERVER, {set_range, Symbol, Period, {T1, T2}}, infinity).
 
 del_range(Symbol, Period) ->
     gen_server:call(?SERVER, {del_range, Symbol, Period}, infinity).
@@ -104,8 +106,8 @@ handle_call(get_symbols_count, _, State) ->
 handle_call({add_history, Symbol, Period, Bars}, _, State) ->
     {reply, put_bars(Symbol, Period, Bars), State};
 
-handle_call({get_history, Symbol, Period, From, To}, _, State) ->
-    {reply, get_bars(Symbol, Period, From, To), State};
+handle_call({get_history, Symbol, Period, T1, T2}, _, State) ->
+    {reply, get_bars(Symbol, Period, T1, T2), State};
 
 handle_call({del_history, Symbol, Period}, _, State) ->
     {reply, del_bars(Symbol, Period), State};
@@ -118,8 +120,8 @@ handle_call({get_range, Symbol, Period}, _, State) ->
 handle_call({del_range, Symbol, Period}, _, State) ->
     {reply, del_bar_range(Symbol, Period), State};
 
-handle_call({set_range, Symbol, Period, From, To}, _, State) ->
-    {reply, set_bar_range(Symbol, Period, {From, To}), State};
+handle_call({set_range, Symbol, Period, {T1, T2}}, _, State) ->
+    {reply, set_bar_range(Symbol, Period, {T1, T2}), State};
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -170,15 +172,13 @@ put_bars(Symbol, Period, Bars) when is_list(Bars) ->
             end,
     lists:foreach(PutFn, Bars).
 
-get_bars(Symbol, Period, From, To) ->
+get_bars(Symbol, Period, T1, T2) ->
     Tab = get_tablename(Symbol, Period),
     case table_exists(Tab) of
         true ->
-            T1 = trade_utils:to_unixtime(To),
-            T2 = trade_utils:to_unixtime(From),
             ok = mnesia:wait_for_tables([Tab], 30000),
             MatchHead = {Tab, '$1', '_', '_', '_', '_', '_'},
-            Guard = {'andalso', {'>=', '$1', T2}, {'=<', '$1', T1}},
+            Guard = {'andalso', {'>=', '$1', T1}, {'=<', '$1', T2}},
             Bars = mnesia:dirty_select(Tab,[{MatchHead, [Guard], ['$_']}]),
             [ {T, O, H, L, C, V} || {_, T, O, H, L, C, V} <- Bars ];
         false ->
@@ -192,15 +192,15 @@ del_bars(Symbol, Period) ->
 get_bar_range(Symbol, Period) ->
     Tab = get_tablename(Symbol, Period),
     case mnesia:dirty_read({range, Tab}) of
-        [{range, Tab, From, To}] -> {From, To};
+        [{range, Tab, T1, T2}] -> {T1, T2};
         _                        -> undefined
     end.
 
 del_bar_range(Symbol, Period) ->
     mnesia:dirty_delete({range, get_tablename(Symbol, Period)}).
 
-set_bar_range(Symbol, Period, {From, To}) ->
-    mnesia:dirty_write({range, get_tablename(Symbol, Period), From, To}).
+set_bar_range(Symbol, Period, {T1, T2}) ->
+    mnesia:dirty_write({range, get_tablename(Symbol, Period), T1, T2}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Local functions:
