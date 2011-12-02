@@ -9,13 +9,13 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--export([handle_call/3, handle_cast/2, handle_info/2]).
+-export([handle_cast/2, handle_info/2]).
 -export([stop/1, start/1, handle_request/3, get_terminal_state/1]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -record(login_info, {name, pass, host, port, limit, period, interval, history=[]}).
--record(state, {account, socket, strategies, strategies_pid, login_info, terminal=#terminal_state{}}).
+-record(state, {account, socket, strategies, strategies_pid, login_info, subscribers=[], terminal=#terminal_state{}}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -48,20 +48,14 @@ start({Account, Options}) ->
 get_terminal_state(#state{terminal=Terminal}) ->
     Terminal.
 
-handle_request(Request, Args, State) ->
-    request(Request, Args, State).
-
-handle_call(get_terminal_state, _, State=#state{terminal=Terminal}) ->
-    {reply, Terminal, State};
-
-handle_call(Data, {From, _}, State) ->
-    lager:debug("Unexpected call received from ~p: ~p", [From, Data]),
-    {reply, {error, invalid_request}, State}.
+handle_request(Name, Args, State=#state{socket=Socket}) ->
+    ok = send_request(make_request(Name, Args), Socket),
+    read_response(Name, [], State).
 
 handle_cast(login, State=#state{account=Account, login_info=LoginInfo}) ->
     lager:info("Terminal '~p': connecting...", [Account]),
     #login_info{name=Name, pass=Pass, host=Host, port=Port} = LoginInfo,
-    case request(login, [Name, Pass, Host, Port], State) of
+    case handle_request(login, [Name, Pass, Host, Port], State) of
         {ok, NewState} ->
             lager:info("Terminal '~p': connected", [Account]),
             {noreply, start_strategies(NewState)};
@@ -71,11 +65,7 @@ handle_cast(login, State=#state{account=Account, login_info=LoginInfo}) ->
         {{error, Error}, NewState} ->
             lager:error("Terminal '~p': failed to connect: ~p", [Account, Error]),
             {noreply, relogin(NewState)}
-    end;
-
-handle_cast(Msg, State) ->
-    lager:debug("Unexpected cast received: ~p", [Msg]),
-    {noreply, State}.
+    end.
 
 handle_info({tcp, Socket, RawData}, State=#state{socket=Socket, terminal=Terminal}) ->
     Data = parse(RawData),
@@ -86,11 +76,7 @@ handle_info({tcp_error, Socket, Error}, State=#state{socket=Socket}) ->
     {stop, {shutdown, {error, Error}}, State};
 
 handle_info({tcp_closed, Socket}, State=#state{socket=Socket}) ->
-    {stop, {shutdown, tcp_closed}, State};
-
-handle_info(Msg, State) ->
-    lager:debug("Unexpected info received: ~p", [Msg]),
-    {noreply, State}.
+    {stop, {shutdown, tcp_closed}, State}.
 
 terminate(_, _) ->
     ok.
@@ -99,10 +85,6 @@ code_change(_, State, _) ->
     {ok, State}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-request(Name, Args, State=#state{socket=Socket}) ->
-    ok = send_request(make_request(Name, Args), Socket),
-    read_response(Name, [], State).
 
 read_response(Name, Result, State=#state{socket=Socket, terminal=Terminal}) ->
     case recv_data(Socket) of

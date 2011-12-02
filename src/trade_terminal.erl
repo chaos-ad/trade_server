@@ -70,31 +70,31 @@ get_trades(Pid) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-buy_order(Pid, Market, Security, Amount) ->
-    new_order(Pid, buy, Market, Security, Amount).
+buy_order(Pid, Security, Amount) ->
+    new_order(Pid, buy, Security, Amount).
 
-sell_order(Pid, Market, Security, Amount) ->
-    new_order(Pid, sell, Market, Security, Amount).
+sell_order(Pid, Security, Amount) ->
+    new_order(Pid, sell, Security, Amount).
 
-new_order(Pid, Mode, Market, Security, Amount) ->
+new_order(Pid, Mode, Security, Amount) ->
     Terminal   = get_state(Pid),
     ClientID   = get_client_id(Terminal),
-    SecurityID = get_security_id(Market, Security, Terminal),
+    SecurityID = get_security_id(Security, Terminal),
     send_request(Pid, neworder, [Mode, SecurityID, ClientID, Amount]).
 
 cancel_order(Pid, TransactionID) ->
     send_request(Pid, cancelorder, [TransactionID]).
 
-get_history(Pid, Market, Security, Period, Bars) ->
-    get_history(Pid, Market, Security, Period, Bars, true).
+get_history(Pid, Security, Period, Bars) ->
+    get_history(Pid, Security, Period, Bars, true).
 
-get_history(Pid, Market, Security, Period, Bars, New) ->
-    get_history(Pid, Market, Security, Period, Bars, New, 10000).
+get_history(Pid, Security, Period, Bars, New) ->
+    get_history(Pid, Security, Period, Bars, New, 10000).
 
-get_history(Pid, Market, Security, Period, Bars, New, Timeout) ->
+get_history(Pid, Security, Period, Bars, New, Timeout) ->
     Terminal    = get_state(Pid),
     PeriodID    = get_period_id(Period, Terminal),
-    SecurityID  = get_security_id(Market, Security, Terminal),
+    SecurityID  = get_security_id(Security, Terminal),
     send_request(Pid, gethistorydata, [SecurityID, PeriodID, Bars, New], Timeout).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -200,8 +200,11 @@ get_period_id(Period, #terminal_state{candlekinds=Candles}) ->
         false          -> exit(invalid_period)
     end.
 
-get_security_id(Market, Security, #terminal_state{securities=Securities}) ->
+get_security_id({Market, Security}, #terminal_state{securities=Securities}) ->
     get_security_id(Market, Security, Securities);
+
+get_security_id(Security, #terminal_state{securities=Securities}) ->
+    get_security_id(1, Security, Securities).
 
 get_security_id(Market, Security, Securities) when is_list(Securities) ->
     case lists:keytake(Security, 5, Securities) of
