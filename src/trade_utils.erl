@@ -112,3 +112,5 @@ weighted_moving_average(Period, Data) ->
           end,
     {_, Result} = lists:foldl(Fun, {[], []}, Data),
     lists:reverse(Result).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

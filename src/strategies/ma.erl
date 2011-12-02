@@ -8,7 +8,15 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--record(state, {period1, period2, ma1=0, ma2=0}).
+-record(state, {
+    terminal,
+    symbol,
+    lots,       %% Сколько лотов покупать
+    p1,         %% период первой MA
+    p2,         %% период второй MA
+    hold,       %% Продавать через hold баров
+    in_pos=0
+}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -18,41 +26,49 @@ start_link(Options) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 start(Options) ->
-    Period1 = proplists:get_value(period1, Options, 10),
-    Period2 = proplists:get_value(period2, Options, 100),
-    lager:debug("Strategy ~p started: periods: ~p, ~p", [?MODULE, Period1, Period2]),
-    #state{period1=Period1, period2=Period2}.
+    #state{
+        terminal    = proplists:get_value(terminal, Options),
+        symbol      = proplists:get_value(symbol,   Options),
+        lots        = proplists:get_value(lots,     Options, 1),
+        p1          = proplists:get_value(p1,       Options, 10),
+        p2          = proplists:get_value(p2,       Options, 100),
+        hold        = proplists:get_value(hold,     Options, 5)
+    }.
 
-update(History, State=#state{period1=P1, period2=P2, ma1=0, ma2=0}) when length(History) >= P2 ->
-    MA1 = trade_utils:weighted_average(trade_utils:close(lists:sublist(History, P1))),
-    MA2 = trade_utils:weighted_average(trade_utils:close(lists:sublist(History, P2))),
-    MA1_OLD = trade_utils:weighted_average(trade_utils:close(lists:sublist(History, 2, P1))),
-    MA2_OLD = trade_utils:weighted_average(trade_utils:close(lists:sublist(History, 2, P2))),
-    case MA1 > MA2 andalso MA1_OLD < MA2_OLD of
-        true  -> {buy, State#state{ma1=MA1, ma2=MA2}};
-        false ->
-            case MA1 < MA2 andalso MA1_OLD > MA2_OLD of
-                true  -> {sell, State#state{ma1=MA1, ma2=MA2}};
-                false -> {hold, State}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% Мы продержали сделку M дней из M необходимых: закрываем
+update(_History, State=#state{in_pos=M, hold=M, symbol=Symbol, lots=Lots, terminal={Term, Pid}}) ->
+    ok = Term:sell_order(Pid, Symbol, Lots),
+    State#state{in_pos=0};
+
+%% Мы продержали сделку N дней из M необходимых: держим дальше
+update(_History, State=#state{in_pos=N, hold=M}) when N < M ->
+    State#state{in_pos=N+1};
+
+%% Нет сделок:
+update(History, State=#state{in_pos=0, symbol=Symbol, lots=Lots, terminal={Term, Pid}}) ->
+    case length(History) of
+        N when N < State#state.p1 -> State;
+        N when N < State#state.p2-> State;
+        _ ->
+            MA1 = trade_utils:weighted_average(trade_utils:close(lists:sublist(History, State#state.p1))),
+            MA2 = trade_utils:weighted_average(trade_utils:close(lists:sublist(History, State#state.p2))),
+            OLD1= trade_utils:weighted_average(trade_utils:close(lists:sublist(History, 2, State#state.p1))),
+            OLD2 = trade_utils:weighted_average(trade_utils:close(lists:sublist(History, 2, State#state.p2))),
+
+            %% Если MA1 пересекла MA2 снизу вверх: покупаем
+            case MA1 > MA2 andalso OLD1 < OLD2 of
+                true  ->
+                    ok = Term:buy_order(Pid, Symbol, Lots),
+                    State#state{in_pos=1};
+                false ->
+                    State
             end
-    end;
+    end.
 
-update(History, State=#state{period1=P1, period2=P2, ma1=MA1_OLD, ma2=MA2_OLD}) when length(History) >= P2 ->
-    MA1 = trade_utils:weighted_average(trade_utils:close(lists:sublist(History, P1))),
-    MA2 = trade_utils:weighted_average(trade_utils:close(lists:sublist(History, P2))),
-    case MA1 > MA2 andalso MA1_OLD < MA2_OLD of
-        true  -> {buy, State#state{ma1=MA1, ma2=MA2}};
-        false ->
-            case MA1 < MA2 andalso MA1_OLD > MA2_OLD of
-                true  -> {sell, State#state{ma1=MA1, ma2=MA2}};
-                false -> {hold, State}
-            end
-    end;
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-update(_, State) -> {hold, State}.
-
-stop(_) ->
-    lager:debug("Strategy ~p stopped", [?MODULE]),
-    ok.
+stop(_) -> ok.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
