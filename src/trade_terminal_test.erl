@@ -13,10 +13,17 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+-record(state, {time=0, terminal, hist_cache=ets:new(cache, [set]), hist_pos=ets:new(pos, [set])}).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 stop(_) -> ok.
 
 start({testmode, Options}) ->
-    {ok, #terminal_state{
+    {ok, #state{terminal=init_terminal(Options)}}.
+
+init_terminal(Options) ->
+    #terminal_state{
         positions=[
             #money_position{
                 saldoin     = proplists:get_value(saldoin, Options, 0.0), %% Входящий остаток
@@ -26,16 +33,46 @@ start({testmode, Options}) ->
                 ordbuy      = 0.0,
                 ordbuycond  = 0.0
         }]
-    }}.
+    }.
 
-get_terminal_state(State) ->
-    State.
+get_terminal_state(#state{terminal=Terminal}) ->
+    Terminal.
 
-handle_request(neworder, [Mode, SecurityID, ClientID, Amount], State=#terminal_state{}) ->
+set_time(Pid, Time) ->
+    trade_terminal:send_request(Pid, settime, Time).
+
+handle_request(settime, Time, State) ->
+    ets:delete_all_objects(State#state.hist_pos),
+    {ok, State#state{time=trade_utils:to_unixtime(Time)}};
+
+handle_request(gethistorydata, [Symbol, Period, Bars, New], State) ->
+    History =
+    case ets:lookup(State#state.hist_cache, {Symbol, Period}) of
+        [{{Symbol, Period}, AllHist}] -> AllHist;
+        [] ->
+            AllHist = lists:reverse(trade_history:get_history(Symbol, Period, {2000, 1, 1})),
+            true = ets:insert(State#state.hist_cache, {{Symbol, Period}, AllHist}),
+            AllHist
+    end,
+
+    Offset =
+    case New of
+        true  -> offsetof(History, State#state.time);
+        false ->
+            case ets:lookup(State#state.hist_pos, {Symbol, Period}) of
+                [] -> offsetof(History, State#state.time);
+                [{{Symbol, Period}, Pos}] -> Pos
+            end
+    end,
+
+    Result = lists:sublist(History, Offset, Bars),
+    true = ets:insert(State#state.hist_pos, {{Symbol, Period}, Offset+length(Result)}),
+    {Result, State};
+
+handle_request(neworder, [Mode, Security, Amount], State) ->
     lager:debug("Test terminal: neworder: ~p = ~p", ["Mode", Mode]),
-    lager:debug("Test terminal: neworder: ~p = ~p", ["Mode", SecurityID]),
-    lager:debug("Test terminal: neworder: ~p = ~p", ["Mode", ClientID]),
-    lager:debug("Test terminal: neworder: ~p = ~p", ["Mode", Amount]),
+    lager:debug("Test terminal: neworder: ~p = ~p", ["Security", Security]),
+    lager:debug("Test terminal: neworder: ~p = ~p", ["Amount", Amount]),
     {ok, State}.
 
 terminate(_, _) ->
@@ -45,3 +82,6 @@ code_change(_, State, _) ->
     {ok, State}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+offsetof(History, Time) ->
+    length(lists:takewhile(fun(Bar) -> element(1, Bar) > Time end, History)) + 1.

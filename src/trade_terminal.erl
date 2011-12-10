@@ -77,10 +77,7 @@ sell_order(Pid, Security, Amount) ->
     new_order(Pid, sell, Security, Amount).
 
 new_order(Pid, Mode, Security, Amount) ->
-    Terminal   = get_state(Pid),
-    ClientID   = get_client_id(Terminal),
-    SecurityID = get_security_id(Security, Terminal),
-    send_request(Pid, neworder, [Mode, SecurityID, ClientID, Amount]).
+    send_request(Pid, neworder, [Mode, Security, Amount]).
 
 cancel_order(Pid, TransactionID) ->
     send_request(Pid, cancelorder, [TransactionID]).
@@ -89,13 +86,7 @@ get_history(Pid, Security, Period, Bars) ->
     get_history(Pid, Security, Period, Bars, true).
 
 get_history(Pid, Security, Period, Bars, New) ->
-    get_history(Pid, Security, Period, Bars, New, 10000).
-
-get_history(Pid, Security, Period, Bars, New, Timeout) ->
-    Terminal    = get_state(Pid),
-    PeriodID    = get_period_id(Period, Terminal),
-    SecurityID  = get_security_id(Security, Terminal),
-    send_request(Pid, gethistorydata, [SecurityID, PeriodID, Bars, New], Timeout).
+    send_request(Pid, gethistorydata, [Security, Period, Bars, New]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -191,26 +182,3 @@ has_function(Module, Function, Arity) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-get_client_id(#terminal_state{clients=[#client{id=ID}]}) -> ID;
-get_client_id(#terminal_state{}) -> exit(invalid_client).
-
-get_period_id(Period, #terminal_state{candlekinds=Candles}) ->
-    case lists:keyfind(Period*60, 3, Candles) of
-        #candlekind{id=ID} -> ID;
-        false          -> exit(invalid_period)
-    end.
-
-get_security_id({Market, Security}, #terminal_state{securities=Securities}) ->
-    get_security_id(Market, Security, Securities);
-
-get_security_id(Security, #terminal_state{securities=Securities}) ->
-    get_security_id(1, Security, Securities).
-
-get_security_id(Market, Security, Securities) when is_list(Securities) ->
-    case lists:keytake(Security, 5, Securities) of
-        {value, #security{secid=ID, market=Market}, _} -> ID;
-        {value, #security{}, Rest} -> get_security_id(Market, Security, Rest);
-        false -> exit(invalid_security)
-    end.
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

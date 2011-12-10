@@ -48,10 +48,6 @@ start({Account, Options}) ->
 get_terminal_state(#state{terminal=Terminal}) ->
     Terminal.
 
-handle_request(Name, Args, State=#state{socket=Socket}) ->
-    ok = send_request(make_request(Name, Args), Socket),
-    read_response(Name, [], State).
-
 handle_cast(login, State=#state{account=Account, login_info=LoginInfo}) ->
     lager:info("Terminal '~p': connecting...", [Account]),
     #login_info{name=Name, pass=Pass, host=Host, port=Port} = LoginInfo,
@@ -85,6 +81,25 @@ code_change(_, State, _) ->
     {ok, State}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+handle_request(neworder, [Mode, Security, Amount], State) ->
+    ClientID   = get_client_id(State#state.terminal),
+    SecurityID = get_security_id(Security, State#state.terminal),
+    Request    = make_request(neworder, [Mode, SecurityID, ClientID, Amount]),
+    send_request(Request, State#state.socket),
+    read_response(neworder, [], State);
+
+handle_request(gethistorydata, [Security, Period, Bars, New], State) ->
+    PeriodID   = get_period_id(Period, State#state.terminal),
+    SecurityID = get_security_id(Security, State#state.terminal),
+    Request    = make_request(gethistorydata, [SecurityID, PeriodID, Bars, New]),
+    send_request(Request, State#state.socket),
+    read_response(gethistorydata, [], State);
+
+handle_request(Name, Args, State) ->
+    Request = make_request(Name, Args),
+    send_request(Request, State#state.socket),
+    read_response(Name, [], State).
 
 read_response(Name, Result, State=#state{socket=Socket, terminal=Terminal}) ->
     case recv_data(Socket) of
@@ -559,8 +574,11 @@ open_terminal({Port, _}) ->
     lager:debug("Terminal spawned successfully"),
     {ok, Terminal}.
 
-open_socket(Acceptor) -> open_socket(Acceptor, 5000).
-open_socket({_, LSocket}, Timeout) -> gen_tcp:accept(LSocket, Timeout).
+open_socket({_, LSocket}) ->
+    lager:debug("Waiting for terminal to link"),
+    {ok, Result} = gen_tcp:accept(LSocket, infinity),
+    lager:debug("Terminal linkted successfully"),
+    {ok, Result}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -597,5 +615,29 @@ stop_strategies(State=#state{strategies_pid=Pid, account=Account}) ->
     lager:info("Stopping strategies for terminal '~p'...", [Account]),
     exit(Pid, normal),
     State#state{strategies_pid=undefined}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+get_client_id(#terminal_state{clients=[#client{id=ID}]}) -> ID;
+get_client_id(#terminal_state{}) -> exit(invalid_client).
+
+get_period_id(Period, #terminal_state{candlekinds=Candles}) ->
+    case lists:keyfind(Period*60, 3, Candles) of
+        #candlekind{id=ID} -> ID;
+        false          -> exit(invalid_period)
+    end.
+
+get_security_id({Market, Security}, #terminal_state{securities=Securities}) ->
+    get_security_id(Market, Security, Securities);
+
+get_security_id(Security, #terminal_state{securities=Securities}) ->
+    get_security_id(1, Security, Securities).
+
+get_security_id(Market, Security, Securities) when is_list(Securities) ->
+    case lists:keytake(Security, 5, Securities) of
+        {value, #security{secid=ID, market=Market}, _} -> ID;
+        {value, #security{}, Rest} -> get_security_id(Market, Security, Rest);
+        false -> exit(invalid_security)
+    end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
