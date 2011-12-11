@@ -109,9 +109,14 @@ init({testmode, Options}) ->
 
 init({Account, Options}) ->
     lager:info("Starting terminal '~p'...", [Account]),
-    {ok, Data} = trade_terminal_impl:start({Account, Options}),
-    lager:info("Terminal '~p' started: ~p", [Account, self()]),
-    {ok, #state{account=Account, module=trade_terminal_impl, data=Data}}.
+    case trade_terminal_impl:start({Account, Options}) of
+        {ok, Data} ->
+            lager:info("Terminal '~p' started: ~p", [Account, self()]),
+            {ok, #state{account=Account, module=trade_terminal_impl, data=Data}};
+        {error, Error} ->
+            lager:info("Failed to start terminal '~p': ~p", [Account, Error]),
+            {stop, error}
+    end.
 
 handle_call({stop, Reason}, _, State) ->
     {stop, Reason, ok, State};
