@@ -1,10 +1,10 @@
 -module(ma).
--behavior(simple_strategy).
+-behavior(bar_strategy).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--export([start_link/1]).
--export([start/1, stop/1, update/2]).
+-export([start_link/2, update/1]).
+-export([start/2, stop/1, update/2]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -20,34 +20,38 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-start_link(Options) ->
-    gen_strategy:start_link(?MODULE, Options).
+start_link(Terminal, Options) ->
+    bar_strategy:start_link(?MODULE, Terminal, Options).
+
+update(Pid) ->
+    bar_strategy:update(Pid).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-start(Options) ->
-    #state{
-        terminal    = proplists:get_value(terminal, Options),
-        symbol      = proplists:get_value(symbol,   Options),
-        lots        = proplists:get_value(lots,     Options, 1),
-        p1          = proplists:get_value(p1,       Options, 10),
-        p2          = proplists:get_value(p2,       Options, 100),
-        hold        = proplists:get_value(hold,     Options, 5)
-    }.
+start(Terminal, Options) ->
+    Symbol      = proplists:get_value(symbol, Options),
+    TimeFrame   = proplists:get_value(timeframe, Options),
+    P1          = proplists:get_value(p1, Options,  10),
+    P2          = proplists:get_value(p2, Options, 100),
+    Lots        = proplists:get_value(lots, Options, 1),
+    Hold        = proplists:get_value(hold, Options, 5),
+    State       = #state{terminal=Terminal, symbol=Symbol, lots=Lots, p1=P1, p2=P2, hold=Hold},
+    {Symbol, TimeFrame, max(P1, P2), State}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Мы продержали сделку M дней из M необходимых: закрываем
-update(_History, State=#state{in_pos=M, hold=M, symbol=Symbol, lots=Lots, terminal={Term, Pid}}) ->
-    ok = Term:sell_order(Pid, Symbol, Lots),
+update(History, State=#state{in_pos=N, hold=M, symbol=Symbol, lots=Lots, terminal=Pid}) when N =/= 0, N =:= M ->
+    lager:debug("ma strategy: ~s: sell ~p of ~s", [time(History), Lots, Symbol]),
+    ok = trade_terminal:sell_order(Pid, Symbol, Lots),
     State#state{in_pos=0};
 
 %% Мы продержали сделку N дней из M необходимых: держим дальше
-update(_History, State=#state{in_pos=N, hold=M}) when N < M ->
+update(_, State=#state{in_pos=N, hold=M}) when N =/= 0, N < M ->
     State#state{in_pos=N+1};
 
 %% Нет сделок:
-update(History, State=#state{in_pos=0, symbol=Symbol, lots=Lots, terminal={Term, Pid}}) ->
+update(History, State=#state{in_pos=0, symbol=Symbol, lots=Lots, terminal=Pid}) ->
     case length(History) of
         N when N < State#state.p1 -> State;
         N when N < State#state.p2-> State;
@@ -60,7 +64,8 @@ update(History, State=#state{in_pos=0, symbol=Symbol, lots=Lots, terminal={Term,
             %% Если MA1 пересекла MA2 снизу вверх: покупаем
             case MA1 > MA2 andalso OLD1 < OLD2 of
                 true  ->
-                    ok = Term:buy_order(Pid, Symbol, Lots),
+                    lager:debug("ma strategy: ~s: buy  ~p of ~s", [time(History), Lots, Symbol]),
+                    ok = trade_terminal:buy_order(Pid, Symbol, Lots),
                     State#state{in_pos=1};
                 false ->
                     State
@@ -72,3 +77,6 @@ update(History, State=#state{in_pos=0, symbol=Symbol, lots=Lots, terminal={Term,
 stop(_) -> ok.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+time(History) ->
+    trade_utils:to_datetimestr(element(1, hd(History))).

@@ -125,13 +125,11 @@ handle_call(get_terminal_state, _, State=#state{module=Module, data=Data}) ->
     {reply, Module:get_terminal_state(Data), State};
 
 handle_call({request, Request, Args}, _, State=#state{module=Module, data=Data}) ->
-    lager:debug("Handling request ~p...", [Request]),
     case Module:handle_request(Request, Args, Data) of
         {error, Error} ->
             lager:error("Failed to perform request ~p: ~p", [Request, Error]),
             {reply, {error, Error}, State};
         {Reply, NewData} ->
-            lager:debug("Request ~p performed successfully", [Request]),
             {reply, Reply, State#state{data=NewData}}
     end;
 
