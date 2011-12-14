@@ -51,7 +51,7 @@ get_terminal_state(#state{terminal=Terminal}) ->
 
 handle_info({tcp, Socket, RawData}, State=#state{socket=Socket, terminal=Terminal}) ->
     Data = parse(RawData),
-    lager:debug("Data received from socket: ~p", [Data]),
+    lager:debug("Data received from socket: ~p", [RawData]),
     {noreply, State#state{terminal=update_terminal(Data, Terminal)}};
 
 handle_info({tcp_error, Socket, Error}, State=#state{socket=Socket}) ->
@@ -81,6 +81,12 @@ handle_request(gethistorydata, [Security, Period, Bars, New], State) ->
     Request    = make_request(gethistorydata, [SecurityID, PeriodID, Bars, New]),
     send_request(Request, State#state.socket),
     read_response(gethistorydata, [], State);
+
+handle_request(subscribe, [Mode, Security], State) ->
+    SecurityID = get_security_id(Security, State#state.terminal),
+    Request    = make_request(subscribe, [{Mode, SecurityID}]),
+    send_request(Request, State#state.socket),
+    read_response(subscribe, [], State);
 
 handle_request(Name, Args, State) ->
     Request = make_request(Name, Args),

@@ -24,7 +24,7 @@ start_link(Module, Terminal, Options) ->
     gen_server:start_link(?MODULE, {Terminal, Module, Options}, []).
 
 update(Pid) ->
-    gen_server:call(Pid, update).
+    gen_server:call(Pid, update, infinity).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

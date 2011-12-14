@@ -15,34 +15,42 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--record(state, {time=0, terminal, test_stats=#test_stats{}, hist_cache=ets:new(cache, [set]), hist_pos=ets:new(pos, [set])}).
+-record(state, {
+    time,
+    terminal,
+    test_stats=#test_stats{},
+    history=ets:new(history, [set]),
+    offsets=ets:new(offsets, [set]),
+    updated=ets:new(updated, [set])
+}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 stop(_) -> ok.
 
 start({testmode, Options}) ->
-    {ok, #state{terminal=init_terminal(Options)}}.
-
-init_terminal(Options) ->
     Money = proplists:get_value(saldo, Options, 0.0),
-    #terminal_state{
-        positions=[
-            #money_position{
-                saldoin     = Money,
-                bought      = 0.0,
-                sold        = 0.0,
-                saldo       = Money,
-                ordbuy      = 0.0,
-                ordbuycond  = 0.0
-        }]
-    }.
+    Time  = proplists:get_value(time,  Options, trade_utils:local_time()),
+    {ok, #state{
+        time=trade_utils:to_unixtime(Time),
+        terminal=#terminal_state{
+            positions=[
+                #money_position{
+                    saldoin     = Money,
+                    bought      = 0.0,
+                    sold        = 0.0,
+                    saldo       = Money,
+                    ordbuy      = 0.0,
+                    ordbuycond  = 0.0
+            }]
+        }
+    }}.
 
 get_terminal_state(#state{terminal=Terminal}) ->
     Terminal.
 
 set_time(Pid, Time) ->
-    trade_terminal:send_request(Pid, settime, Time).
+    trade_terminal:send_request(Pid, set_time, Time).
 
 get_stats(Pid) ->
     trade_terminal:send_request(Pid, get_stats, []).
@@ -50,36 +58,36 @@ get_stats(Pid) ->
 handle_request(get_stats, [], State=#state{test_stats=Statistics}) ->
     {Statistics#test_stats{history=lists:reverse(Statistics#test_stats.history)}, State};
 
-handle_request(settime, Time, State) ->
-    case Time >= State#state.time of
-        true  -> ok;
-        false -> ets:delete_all_objects(State#state.hist_pos)
-    end,
-    {ok, State#state{time=trade_utils:to_unixtime(Time)}};
+handle_request(set_time, Time, State=#state{time=OldTime}) ->
+    case trade_utils:to_unixtime(Time) of
+        OldTime -> {ok, State};
+        NewTime when NewTime < OldTime ->
+            true = ets:delete_all_objects(State#state.history),
+            true = ets:delete_all_objects(State#state.updated),
+            {ok, State#state{time=NewTime}};
+        NewTime when NewTime > OldTime ->
+            true = ets:delete_all_objects(State#state.updated),
+            {ok, State#state{time=NewTime}}
+    end;
 
 handle_request(gethistorydata, [Symbol, Period, Bars, New], State) ->
-
-    History = get_history(State#state.hist_cache, Symbol, Period),
-
-    Offset =
+    History = get_history(Symbol, Period, State),
     case New of
-        true  -> offsetof(History, State#state.time);
+        true  ->
+            {lists:sublist(History, Bars), State};
         false ->
-            case ets:lookup(State#state.hist_pos, {Symbol, Period}) of
-                [{{Symbol, Period}, Pos}] -> Pos;
-                [] -> offsetof(History, State#state.time)
-            end
-    end,
-
-    Result = lists:sublist(History, Offset, Bars),
-    true = ets:insert(State#state.hist_pos, {{Symbol, Period}, Offset+length(Result)}),
-    {Result, State};
+            Offset = get_offset(Symbol, Period, State),
+            Result = lists:sublist(History, Offset, Bars),
+            true   = set_offset(Symbol, Period, Offset + Bars, State),
+            {Result, State}
+    end;
 
 handle_request(neworder, [Mode, Symbol, Amount], State=#state{test_stats=Statistics}) ->
-
-    History = get_history(State#state.hist_cache, Symbol, ?PERIOD_M1),
-    Bar = first_bar(History, State#state.time),
-    Price = trade_utils:close(Bar),
+    Price =
+    case get_history(Symbol, ?PERIOD_M1, State) of
+        [] -> error(no_history);
+        [Bar|_] -> trade_utils:close(Bar)
+    end,
 
     NewTerminal =
     case Mode of
@@ -90,6 +98,7 @@ handle_request(neworder, [Mode, Symbol, Amount], State=#state{test_stats=Statist
     Entry = {Mode, Symbol, Amount, State#state.time, Price},
     NewStatHistory = [Entry|Statistics#test_stats.history],
     NewStatistics = Statistics#test_stats{history=NewStatHistory},
+
     {ok, State#state{terminal=NewTerminal, test_stats=NewStatistics}}.
 
 terminate(_, _) ->
@@ -100,21 +109,37 @@ code_change(_, State, _) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-get_history(CachePid, Symbol, Period) ->
-    case ets:lookup(CachePid, {Symbol, Period}) of
-        [{{Symbol, Period}, AllHist}] -> AllHist;
+get_history(Symbol, Period, #state{time=Time, history=HistPid, updated=UpdPid}) ->
+    Key = {Symbol, Period},
+    case ets:lookup(HistPid, Key) of
         [] ->
-            AllHist = lists:reverse(trade_history:get_history(Symbol, Period, {2000, 1, 1})),
-            true = ets:insert(CachePid, {{Symbol, Period}, AllHist}),
-            AllHist
+            AllHist = trade_history:get_history(Symbol, Period, {2000, 1, 1}),
+            {History, Future} = lists:splitwith(fun(Bar) -> trade_utils:time(Bar) < Time end, AllHist),
+            NewHistory = lists:reverse(History),
+            true = ets:insert(UpdPid, {Key, true}),
+            true = ets:insert(HistPid, {Key, {NewHistory, Future}}),
+            NewHistory;
+        [{Key, {OldHistory, Future}}] ->
+            case ets:lookup(UpdPid, Key) of
+                [{Key, true}] ->
+                    OldHistory;
+                _ ->
+                    {History, NewFuture} = lists:splitwith(fun(Bar) -> trade_utils:time(Bar) < Time end, Future),
+                    NewHistory = lists:reverse(History) ++ OldHistory,
+                    true = ets:insert(UpdPid, {Key, true}),
+                    true = ets:insert(HistPid, {Key, {NewHistory, NewFuture}}),
+                    NewHistory
+            end
     end.
 
-offsetof(History, Time) ->
-    length(lists:takewhile(fun(Bar) -> element(1, Bar) > Time end, History)) + 1.
+get_offset(Symbol, Period, #state{offsets=Pid}) ->
+    case ets:lookup(Pid, {Symbol, Period}) of
+        [] -> 1;
+        [{{Symbol, Period}, Offset}] -> Offset
+    end.
 
-first_bar([], _) -> undefined;
-first_bar([Bar| Tail], Time) when element(1, Bar)  > Time -> first_bar(Tail, Time);
-first_bar([Bar|_Tail], Time) when element(1, Bar) =< Time -> Bar.
+set_offset(Symbol, Period, Offset, #state{offsets=Pid}) ->
+    ets:insert(Pid, {{Symbol, Period}, Offset}).
 
 add_money(Money, State=#terminal_state{positions=Positions}) ->
     MoneyPos = lists:keyfind(money_position, 1, Positions),

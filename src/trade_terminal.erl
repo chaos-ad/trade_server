@@ -88,6 +88,9 @@ get_history(Pid, Security, Period, Bars) ->
 get_history(Pid, Security, Period, Bars, New) ->
     send_request(Pid, gethistorydata, [Security, Period, Bars, New]).
 
+subscribe(Pid, Mode, Security) ->
+    send_request(Pid, subscribe, [Mode, Security]).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 send_request(Pid, Request) ->

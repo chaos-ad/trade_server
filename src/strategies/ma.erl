@@ -68,6 +68,7 @@ update(History, State=#state{in_pos=0, symbol=Symbol, lots=Lots, terminal=Pid}) 
                     ok = trade_terminal:buy_order(Pid, Symbol, Lots),
                     State#state{in_pos=1};
                 false ->
+                    lager:debug("ma strategy: nothing interesting at ~s", [time(History)]),
                     State
             end
     end.
