@@ -37,7 +37,7 @@ test() ->
     timer:tc
     (
         fun() ->
-            trade_strategy_tester:test({2009, 3, 2}, {2009, 3, 3}, ?PERIOD_M5, 300000, ma, [{symbol, "GAZP"}, {timeframe, ?PERIOD_M5}])
+            trade_strategy_tester:test({2009, 3, 2}, {2009, 3, 3}, ?PERIOD_M1, 300000, ma, [{symbol, "GAZP"}, {timeframe, ?PERIOD_M1}])
         end
     ),
     io:format("Done in ~p seconds~n", [TC/1000/1000]).

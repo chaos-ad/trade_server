@@ -19,6 +19,7 @@
     time,
     terminal,
     test_stats=#test_stats{},
+    future=ets:new(future, [set]),
     history=ets:new(history, [set]),
     offsets=ets:new(offsets, [set]),
     updated=ets:new(updated, [set])
@@ -62,6 +63,7 @@ handle_request(set_time, Time, State=#state{time=OldTime}) ->
     case trade_utils:to_unixtime(Time) of
         OldTime -> {ok, State};
         NewTime when NewTime < OldTime ->
+            true = ets:delete_all_objects(State#state.future),
             true = ets:delete_all_objects(State#state.history),
             true = ets:delete_all_objects(State#state.updated),
             {ok, State#state{time=NewTime}};
@@ -109,27 +111,41 @@ code_change(_, State, _) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-get_history(Symbol, Period, #state{time=Time, history=HistPid, updated=UpdPid}) ->
+get_history(Symbol, Period, #state{time=Time, future=FutPid, history=HistPid, updated=UpdPid}) ->
     Key = {Symbol, Period},
-    case ets:lookup(HistPid, Key) of
+    case ets:lookup(UpdPid, Key) of
+        [{Key, true}] ->
+            %% History was already updated
+            [{Key, History}] = ets:lookup(HistPid, Key), History;
         [] ->
-            AllHist = trade_history:get_history(Symbol, Period, {2000, 1, 1}),
-            {History, Future} = lists:splitwith(fun(Bar) -> trade_utils:time(Bar) < Time end, AllHist),
-            NewHistory = lists:reverse(History),
+            %% History needs to be updated:
+            Future =
+            case ets:lookup(FutPid, Key) of
+                [{Key, F}] -> F;
+                [] -> trade_history:get_history(Symbol, Period, {2000, 1, 1})
+            end,
+
+            History =
+            case ets:lookup(HistPid, Key) of
+                [{Key, H}] -> H;
+                [] -> []
+            end,
+
+            {HistoryPart, NewFuture} = lists:splitwith(fun(Bar) -> trade_utils:time(Bar) < Time end, Future),
+            NewHistory = lists:reverse(HistoryPart) ++ History,
+
+            case Future =/= NewFuture of
+                true  -> true = ets:insert(FutPid, {Key, NewFuture});
+                false -> ok
+            end,
+
+            case NewHistory =/= History of
+                true  -> true = ets:insert(HistPid, {Key, NewHistory});
+                false -> ok
+            end,
+
             true = ets:insert(UpdPid, {Key, true}),
-            true = ets:insert(HistPid, {Key, {NewHistory, Future}}),
-            NewHistory;
-        [{Key, {OldHistory, Future}}] ->
-            case ets:lookup(UpdPid, Key) of
-                [{Key, true}] ->
-                    OldHistory;
-                _ ->
-                    {History, NewFuture} = lists:splitwith(fun(Bar) -> trade_utils:time(Bar) < Time end, Future),
-                    NewHistory = lists:reverse(History) ++ OldHistory,
-                    true = ets:insert(UpdPid, {Key, true}),
-                    true = ets:insert(HistPid, {Key, {NewHistory, NewFuture}}),
-                    NewHistory
-            end
+            NewHistory
     end.
 
 get_offset(Symbol, Period, #state{offsets=Pid}) ->
