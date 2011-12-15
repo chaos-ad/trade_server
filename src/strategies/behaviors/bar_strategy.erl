@@ -16,7 +16,7 @@ behaviour_info(_) -> undefined.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--record(state, {term, mod, data, symbol, period, depth, last_bar}).
+-record(state, {term, mod, data, symbol, period, depth}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -29,28 +29,22 @@ update(Pid) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 init({Terminal, Module, Options}) ->
-    {Symbol, Period, Depth, Data} = Module:start(Terminal, Options),
+    {ok, Data} = Module:start(Terminal, Options),
     {ok, #state{
-        mod    = Module,
-        term   = Terminal,
-        data   = Data,
-        symbol = Symbol,
-        period = Period,
-        depth  = Depth
+        term     = Terminal,
+        mod      = Module,
+        data     = Data,
+        depth    = proplists:get_value(depth, Options, 1000),
+        symbol   = proplists:get_value(symbol, Options),
+        period   = proplists:get_value(period, Options)
     }}.
 
-handle_call(update, _, State=#state{mod=Mod, term=Terminal, data=Data, symbol=Symbol, period=Period, last_bar=LastBar}) ->
-    case trade_terminal:get_history(Terminal, Symbol, Period, 1000, true) of
-        [] -> {reply, ok, State};
-        History ->
-            case hd(History) =:= LastBar of
-                true  -> {reply, ok, State};
-                false -> {reply, ok, State#state{data=Mod:update(History, Data), last_bar=hd(History)}}
-            end
-    end;
+handle_call(update, _, State=#state{term=Term, mod=Mod, data=Data, symbol=Symbol, period=Period, depth=Depth}) ->
+    History = trade_terminal:get_history(Term, Symbol, Period, Depth, true),
+    {reply, ok, State#state{data=Mod:update(History, Data)}};
 
 handle_call(_, _, State) ->
-    {noreply, ok, State}.
+    {noreply, State}.
 
 handle_cast(_, State) ->
     {noreply, State}.

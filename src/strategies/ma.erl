@@ -30,19 +30,17 @@ update(Pid) ->
 
 start(Terminal, Options) ->
     Symbol      = proplists:get_value(symbol, Options),
-    TimeFrame   = proplists:get_value(timeframe, Options),
     P1          = proplists:get_value(p1, Options,  10),
     P2          = proplists:get_value(p2, Options, 100),
     Lots        = proplists:get_value(lots, Options, 1),
     Hold        = proplists:get_value(hold, Options, 5),
-    State       = #state{terminal=Terminal, symbol=Symbol, lots=Lots, p1=P1, p2=P2, hold=Hold},
-    {Symbol, TimeFrame, max(P1, P2), State}.
+    {ok, #state{terminal=Terminal, symbol=Symbol, lots=Lots, p1=P1, p2=P2, hold=Hold}}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Мы продержали сделку M дней из M необходимых: закрываем
 update(History, State=#state{in_pos=N, hold=M, symbol=Symbol, lots=Lots, terminal=Pid}) when N =/= 0, N =:= M ->
-    lager:debug("ma strategy: ~s: sell ~p of ~s", [time(History), Lots, Symbol]),
+%     lager:debug("ma strategy: ~s: sell ~p of ~s", [time(History), Lots, Symbol]),
     ok = trade_terminal:sell_order(Pid, Symbol, Lots),
     State#state{in_pos=0};
 
@@ -64,11 +62,11 @@ update(History, State=#state{in_pos=0, symbol=Symbol, lots=Lots, terminal=Pid}) 
             %% Если MA1 пересекла MA2 снизу вверх: покупаем
             case MA1 > MA2 andalso OLD1 < OLD2 of
                 true  ->
-                    lager:debug("ma strategy: ~s: buy  ~p of ~s", [time(History), Lots, Symbol]),
+%                     lager:debug("ma strategy: ~s: buy  ~p of ~s", [time(History), Lots, Symbol]),
                     ok = trade_terminal:buy_order(Pid, Symbol, Lots),
                     State#state{in_pos=1};
                 false ->
-                    lager:debug("ma strategy: nothing interesting at ~s", [time(History)]),
+%                     lager:debug("ma strategy: nothing interesting at ~s", [time(History)]),
                     State
             end
     end.
