@@ -20,15 +20,25 @@ prepare_symbols(Str) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-download_history(MarketID, SymbolID, ?PERIOD_M1, From, To) when From < To ->
-    T1 = trade_utils:to_date(From),
-    T2 = trade_utils:to_date(To),
-    download_by_year(MarketID, SymbolID, ?PERIOD_M1, T1, T2, []);
+get_symbol_info(Symbol) ->
+     case trade_db:find_symbol(Symbol) of
+        [{ID, _, _, Market}] -> {Market, ID};
+        _                    -> exit("symbol not found")
+    end.
 
-download_history(MarketID, SymbolID, Period, From, To) when From < To ->
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+download_history(Symbol, ?PERIOD_M1, From, To) when From < To ->
     T1 = trade_utils:to_date(From),
     T2 = trade_utils:to_date(To),
-    download_by_year(MarketID, SymbolID, Period, T1, T2, []).
+    {MarketID, SymbolID} = get_symbol_info(Symbol),
+    download_by_year(MarketID, {Symbol, SymbolID}, ?PERIOD_M1, T1, T2, []);
+
+download_history(Symbol, Period, From, To) when From < To ->
+    T1 = trade_utils:to_date(From),
+    T2 = trade_utils:to_date(To),
+    {MarketID, SymbolID} = get_symbol_info(Symbol),
+    download_by_year(MarketID, {Symbol, SymbolID}, Period, T1, T2, []).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% PERIOD_M1 can be downloaded only by 1 year
@@ -46,14 +56,15 @@ download_by_year(MarketID, SymbolID, Period, T1={Year,_,_}, T2, Acc) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-download(MarketID, SymbolID, Period, T1, T2) when T1 < T2 ->
+download(MarketID, {Symbol, SymbolID}, Period, T1, T2) when T1 < T2 ->
     lager:debug("Downloading range ~s - ~s...", [trade_utils:to_datestr(T1), trade_utils:to_datestr(T2)]),
     URL = make_url(MarketID, SymbolID, Period, T1, T2),
     lager:debug("Downloading '~s'...", [URL]),
     {ok, {{_, 200, _}, _, Body}} = httpc:request(URL),
     lager:debug("Parsing..."),
     History = parse_history(Body),
-    lager:debug("~B bars downloaded", [length(History)]),
+    lager:debug("Importing ~B bars...", [length(History)]),
+    ok = trade_db:add_history(Symbol, Period, History),
     History.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

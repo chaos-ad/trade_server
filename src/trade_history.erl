@@ -45,20 +45,11 @@ handle_call({get_history, Symbol, Period, T1, T2}, _, State) ->
     end.
 
 fetch_history(Symbol, Period, T1, T2) when T1 < T2 ->
-    {MarketID, SymbolID} = get_symbol_info(Symbol),
-    Data = trade_finam:download_history(MarketID, SymbolID, Period, T1, T2),
-    lager:debug("Importing ~B bars...", [length(Data)]),
-    ok = trade_db:add_history(Symbol, Period, Data);
+    trade_finam:download_history(Symbol, Period, T1, T2);
 
 fetch_history(_, _, T1, T2) when T1 >= T2 -> ok.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-get_symbol_info(Symbol) ->
-     case trade_db:find_symbol(Symbol) of
-        [{ID, _, _, Market}] -> {Market, ID};
-        _                    -> exit("symbol not found")
-    end.
 
 get_range(Period, T1, T2) ->
     D1 = trade_utils:to_date(T1),
