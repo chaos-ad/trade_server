@@ -1,1 +1,0 @@
--record(test_stats, {history=[]}).

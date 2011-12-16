@@ -113,4 +113,7 @@ weighted_moving_average(Period, Data) ->
     {_, Result} = lists:foldl(Fun, {[], []}, Data),
     lists:reverse(Result).
 
+geometric_mean(Data) ->
+    math:pow( lists:foldl(fun(X,Y) -> X * Y end, 1, Data), 1/length(Data) ).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
