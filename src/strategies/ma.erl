@@ -74,7 +74,7 @@ test(Threads) ->
 
 test(P1, P2, H) ->
     io:format("Testing: P1 = ~p, P2 = ~p, H = ~p...~n", [P1, P2, H]),
-    Res = trade_tester:test("GAZP", 5, {2011, 1, 1}, ma, [{p1, P1}, {p2, P2}, {hold, H}], [{money, 10000}]),
+    Res = trade_tester:test("GAZP", 5, {2010, 1, 1}, ma, [{p1, P1}, {p2, P2}, {hold, H}], [{money, 10000}]),
     io:format("Testing: P1 = ~p, P2 = ~p, H = ~p: done~n", [P1, P2, H]),
     {P1, P2, H, Res}.
 
