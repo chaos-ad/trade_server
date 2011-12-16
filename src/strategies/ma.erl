@@ -63,12 +63,9 @@ stop(_) -> ok.
 test(Threads) ->
     Jobs =
     [ fun() -> test(P1, P2, H) end ||
-        P1 <- lists:seq(10, 100, 10),
-        P2 <- lists:seq(10, 100, 10),
-        H <- lists:seq(1, 1), P1 < P2
-%         P1 <- lists:seq(5, 100, 5),
-%         P2 <- lists:seq(5, 100, 5),
-%         H <- lists:seq(1, 10), P1 < P2
+        P1 <- lists:seq(5, 100, 5),
+        P2 <- lists:seq(5, 100, 5),
+        H <- lists:seq(1, 10), P1 < P2
     ],
     Results = run_jobs(Jobs, Threads),
     Equities = lists:map(fun({P1, P2, H, R}) -> {P1, P2, H, element(2, R)} end, Results),
