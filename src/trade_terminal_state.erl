@@ -11,14 +11,14 @@ new() ->
 new(Options) ->
     Money = proplists:get_value(money, Options, 0.0),
     State = #terminal_state{securities=make_securities()},
-    set_money_pos(#money_position{saldo=Money}, State).
+    set_money_position(#money_position{saldo=Money}, State).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-set_money_pos(Pos=#money_position{}, State=#terminal_state{positions=Positions}) ->
+set_money_position(Pos=#money_position{}, State=#terminal_state{positions=Positions}) ->
     State#terminal_state{positions=lists:keystore(money_position, 1, Positions, Pos)}.
 
-get_money_pos(#terminal_state{positions=Positions}) ->
+get_money_position(#terminal_state{positions=Positions}) ->
     case lists:keyfind(money_position, 1, Positions) of
         false    -> exit(no_money_pos);
         Position -> Position
@@ -28,71 +28,74 @@ get_money(#money_position{saldo=Money}) ->
     Money;
 
 get_money(State=#terminal_state{}) ->
-    Pos = get_money_pos(State),
+    Pos = get_money_position(State),
     Pos#money_position.saldo.
 
 add_money(Delta, State=#terminal_state{}) ->
-    Pos = get_money_pos(State),
-    set_money_pos(Pos#money_position{saldo=get_money(Pos) + Delta}, State).
+    Pos = get_money_position(State),
+    set_money_position(Pos#money_position{saldo=get_money(Pos) + Delta}, State).
 
 del_money(Delta, State=#terminal_state{}) ->
-    Pos = get_money_pos(State),
+    Pos = get_money_position(State),
     case get_money(Pos) of
         Money when Money <  Delta -> error(no_money);
         Money when Money >= Delta ->
-            set_money_pos(Pos#money_position{saldo=get_money(Pos) + Money}, State)
+            set_money_position(Pos#money_position{saldo=get_money(Pos) + Money}, State)
     end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-get_pos(SecID, #terminal_state{positions=Positions}) ->
+get_positions(#terminal_state{positions=Positions}) ->
+    Positions.
+
+get_position(SecID, #terminal_state{positions=Positions}) ->
     false2undef( lists:keyfind(SecID, 3, Positions) ).
 
-set_pos(Pos=#sec_position{secid=SecID}, State=#terminal_state{positions=Positions}) ->
+set_position(Pos=#sec_position{secid=SecID}, State=#terminal_state{positions=Positions}) ->
     State#terminal_state{positions=lists:keystore(SecID, 3, Positions, Pos)}.
 
-del_pos(#sec_position{secid=SecID}, State=#terminal_state{}) ->
-    del_pos(SecID, State);
+del_position(#sec_position{secid=SecID}, State=#terminal_state{}) ->
+    del_position(SecID, State);
 
-del_pos(SecID, State=#terminal_state{positions=Positions}) ->
+del_position(SecID, State=#terminal_state{positions=Positions}) ->
     State#terminal_state{positions=lists:keydelete(SecID, 3, Positions)}.
 
-get_pos_lots(SecID, State=#terminal_state{}) ->
-    case get_pos(SecID, State) of
+get_position_lots(SecID, State=#terminal_state{}) ->
+    case get_position(SecID, State) of
         undefined -> 0;
         #sec_position{saldo=Lots} -> Lots
     end.
 
-add_pos_lots(Delta, SecID, State=#terminal_state{}) ->
-    case get_pos(SecID, State) of
+add_position_lots(Delta, SecID, State=#terminal_state{}) ->
+    case get_position(SecID, State) of
         undefined ->
             NewPos = #sec_position{secid=SecID, saldo=Delta},
-            set_pos(NewPos, State);
+            set_position(NewPos, State);
         Pos = #sec_position{saldo=Saldo} ->
             NewPos = Pos#sec_position{saldo=Saldo+Delta},
-            set_pos(NewPos, State)
+            set_position(NewPos, State)
     end.
 
-del_pos_lots(Lots, SecID, State=#terminal_state{}) ->
-    case get_pos(SecID, State) of
+del_position_lots(Lots, SecID, State=#terminal_state{}) ->
+    case get_position(SecID, State) of
         undefined -> State;
-        Pos = #sec_position{saldo=Lots} -> del_pos(Pos, State);
+        Pos = #sec_position{saldo=Lots} -> del_position(Pos, State);
         Pos = #sec_position{saldo=Saldo} ->
             NewPos = Pos#sec_position{saldo=Saldo-Lots},
-            set_pos(NewPos, State)
+            set_position(NewPos, State)
     end.
 
-merge_pos(NewPos=#money_position{}, State=#terminal_state{}) ->
-    set_money_pos(NewPos, State);
+merge_positions(NewPos=#money_position{}, State=#terminal_state{}) ->
+    set_money_position(NewPos, State);
 
-merge_pos(NewPos=#sec_position{secid=SecID}, State=#terminal_state{}) ->
-    case get_pos(SecID, State) of
-        undefined -> set_pos(NewPos, State);
+merge_positions(NewPos=#sec_position{secid=SecID}, State=#terminal_state{}) ->
+    case get_position(SecID, State) of
+        undefined -> set_position(NewPos, State);
         OldPos ->
             List = lists:zip(tl(tuple_to_list(OldPos)), tl(tuple_to_list(NewPos))),
             Merged = lists:map(fun({X, undefined}) -> X; ({_, X}) -> X end, List),
             Result = list_to_tuple([sec_position|Merged]),
-            set_pos(Result, State)
+            set_position(Result, State)
     end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -120,6 +123,9 @@ merge_order(NewOrder=#order{transactionid=OrderID}, State=#terminal_state{}) ->
     end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+get_trades(#terminal_state{trades=Trades}) ->
+    Trades.
 
 get_trade(SecID, #terminal_state{trades=Trades}) ->
     false2undef( lists:keyfind(SecID, 2, Trades) ).
@@ -150,6 +156,25 @@ get_security_id(Market, Security, Securities) when is_list(Securities) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+get_client_id(#terminal_state{clients=[#client{id=ID}]}) ->
+    ID;
+
+get_client_id(#terminal_state{}) ->
+    undefined.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+get_period_id(Period, #terminal_state{candlekinds=Candles}) ->
+    case lists:keyfind(Period*60, 3, Candles) of
+        false -> undefined;
+        #candlekind{id=ID} -> ID
+    end.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+get_securities(#terminal_state{securities=Securities}) ->
+    Securities.
+
 get_security(SecID, #terminal_state{securities=Securities}) ->
     false2undef( lists:keyfind(SecID, 2, Securities) ).
 
@@ -161,6 +186,11 @@ del_security(#security{secid=SecID}, State=#terminal_state{}) ->
 
 del_security(SecID, State=#terminal_state{securities=Securities}) ->
     State#terminal_state{securities=lists:keydelete(SecID, 2, Securities)}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+get_orders(#terminal_state{orders=Orders}) ->
+    Orders.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
