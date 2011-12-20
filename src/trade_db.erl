@@ -31,6 +31,9 @@ get_symbol(Arg) ->
 find_symbol(Arg) ->
     gen_server:call(?SERVER, {find_symbol, Arg}).
 
+get_all_symbols() ->
+    gen_server:call(?SERVER, get_all_symbols).
+
 get_symbols_count() ->
     gen_server:call(?SERVER, get_symbols_count).
 
@@ -98,6 +101,9 @@ handle_call({get_symbol, Arg}, _, State) ->
 handle_call({find_symbol, Arg}, _, State) ->
    {reply, find_symbol_info(Arg), State};
 
+handle_call(get_all_symbols, _, State) ->
+    {reply, get_all_symbols_info(), State};
+
 handle_call(get_symbols_count, _, State) ->
     {reply, get_symbol_info_count(), State};
 
@@ -157,6 +163,9 @@ find_symbol_info(Code) when is_list(Code) ->
 find_symbol_info(Code) when is_binary(Code) ->
     Fn = fun({symbol, ID, C, N, M}) -> {ID, C, N, M} end,
     lists:map(Fn, mnesia:dirty_match_object(#symbol{id='_', code=Code, name='_', market='_'}) ).
+
+get_all_symbols_info() ->
+    mnesia:dirty_match_object(#symbol{id='_', code='_', name='_', market='_'}).
 
 get_symbol_info_count() ->
     mnesia:table_info(symbol, size).

@@ -85,6 +85,17 @@ duration_to_seconds({D, H, M, S}) -> duration_to_seconds({D*24+H, M, S}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+to_binary(X) when is_binary(X)  -> X;
+to_binary(X) -> list_to_binary(to_list(X)).
+
+to_list(A) when is_list(A)      -> A;
+to_list(A) when is_atom(A)      -> atom_to_list(A);
+to_list(A) when is_integer(A)   -> integer_to_list(A);
+to_list(A) when is_float(A)     -> float_to_list(A);
+to_list(A) when is_binary(A)    -> binary_to_list(A).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 average(Data) when is_list(Data) ->
     lists:sum(Data) / length(Data).
 

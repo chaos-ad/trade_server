@@ -5,93 +5,147 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--record(stats, {equity=0, pl=[], bids=[], ops=[]}).
--record(state, {lots=0, price=0, money=0, s_module, s_state, stats=#stats{}, history=[], future=[]}).
+-record(stats, {pl=[]}).
+-record(state, {strategy, strategy_state, terminal_state, stats=#stats{}, history=[], future=[], avg_price, secid}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-test(Symbol, Period, From, Strategy, Options, TestOptions) ->
+test(TestOptions, Strategy, StrategyOptions) ->
+    From     = proplists:get_value(from, TestOptions),
+    To       = proplists:get_value(to,   TestOptions),
+    Symbol   = proplists:get_value(symbol, TestOptions),
+    Period   = proplists:get_value(period, TestOptions),
+    Terminal = trade_terminal_state:new(TestOptions),
     State = #state{
-        lots     = 0,
-        money    = proplists:get_value(money, TestOptions),
-        history  = [],
-        future   = trade_history:get_history(Symbol, Period, From),
-        s_module = Strategy,
-        s_state  = Strategy:start(Options)
+        secid          = trade_terminal_state:get_security_id(Symbol, Terminal),
+        avg_price      = 0,
+        history        = [],
+        future         = get_history(Symbol, Period, From, To),
+        strategy       = Strategy,
+        strategy_state = Strategy:start(StrategyOptions),
+        terminal_state = Terminal
     },
     test_loop(State).
 
-
-test_loop(State=#state{s_module=SModule, future=[], stats=Stats}) ->
-    SModule:stop(State#state.s_state),
-    PL   = lists:reverse(Stats#stats.pl),
-    Ops  = lists:reverse(Stats#stats.ops),
-    Bids = lists:reverse(Stats#stats.bids),
-    NewStats = Stats#stats{pl=PL, ops=Ops, bids=Bids},
-%     print_report(NewStats),
+test_loop(State=#state{future=[]}) ->
+    Stats         = State#state.stats,
+    Strategy      = State#state.strategy,
+    StrategyState = State#state.strategy_state,
+    Strategy:stop(StrategyState),
+    NewStats = Stats#stats{pl = lists:reverse(Stats#stats.pl)},
+    print_report(NewStats),
     NewStats;
 
-test_loop(State=#state{s_module=SModule, history=History, future=[Bar|Future]}) ->
-    NewState1 = State#state{history=[Bar|History], future=Future},
-    NewState2 = update_state( SModule:update(NewState1#state.history, NewState1#state.s_state), NewState1 ),
+test_loop(State=#state{history=History, future=[Bar|Future]}) ->
+    Strategy      = State#state.strategy,
+    StrategyState = State#state.strategy_state,
+    TerminalState = State#state.terminal_state,
+    NewHistory    = [Bar|History],
+    NewState1     = State#state{history=NewHistory, future=Future},
+    NewState2     = handle_signal( Strategy:update(NewHistory, TerminalState, StrategyState), NewState1 ),
     test_loop(NewState2).
 
+handle_signal({Signal, NewStrategyState}, State) ->
+    handle_signal(Signal, State#state{strategy_state=NewStrategyState});
 
-update_state({Signal, NewSState}, State) ->
-    handle_signal(Signal, State#state{s_state=NewSState}).
+handle_signal(NewLots, State=#state{secid=SecID, terminal_state=Terminal}) ->
+    case trade_terminal_state:get_pos_lots(SecID, Terminal) of
+        Lots when Lots  <  NewLots -> buy(NewLots-Lots, State);
+        Lots when Lots  >  NewLots -> sell(Lots-NewLots, State);
+        Lots when Lots =:= NewLots -> State
+    end.
 
-
-%% Покупка:
-handle_signal(N, State=#state{lots=L, price=AvgPrice, money=Money, stats=Stats}) when N > L, N > 0 ->
-    Lots = N - L,
+buy(Lots, State=#state{secid=SecID, avg_price=AvgPrice, terminal_state=Terminal}) ->
     Bar = hd(State#state.history),
-    BuyPrice = trade_utils:close(Bar),
-    NewAvgPrice = (AvgPrice * L + BuyPrice * Lots) / N,
+    Price = trade_utils:close(Bar),
+    case trade_terminal_state:get_money(Terminal) of
+        Money when Money <  Lots * Price -> exit(no_money);
+        Money when Money >= Lots * Price ->
+            OldLots = trade_terminal_state:get_pos_lots(SecID, Terminal),
+            NewAvgPrice = (OldLots*AvgPrice + Lots*Price) / (OldLots+Lots),
+            lager:debug("tester: ~s: buy  ~p at ~p, average price: ~p", [trade_utils:to_datetimestr(trade_utils:time(Bar)), Lots, Price, NewAvgPrice]),
+            NewTerminal1 = trade_terminal_state:add_pos_lots(Lots, SecID, Terminal),
+            NewTerminal2 = trade_terminal_state:del_money(Lots*Price, NewTerminal1),
+            State#state{avg_price=NewAvgPrice, terminal_state=NewTerminal2}
+    end.
 
-%     lager:debug("tester: ~s: buy  ~p at ~p", [trade_utils:to_datetimestr(trade_utils:time(Bar)), Lots, BuyPrice]),
-
-    case (BuyPrice * Lots) > Money of
-        true  -> exit(no_money);
-        false -> ok
-    end,
-
-    OP  = {trade_utils:time(Bar), -Lots, BuyPrice},
-    NewStats = Stats#stats{
-        ops    = [OP |Stats#stats.ops],
-        equity = Money-(BuyPrice * Lots)
-    },
-
-    State#state{lots=N, price=NewAvgPrice, money=Money-(BuyPrice * Lots), stats=NewStats};
-
-
-%% Продажа:
-handle_signal(N, State=#state{lots=L, price=AvgPrice, money=Money, stats=Stats}) when L > N, L > 0 ->
-    Lots = L - N,
+sell(Lots, State=#state{secid=SecID, avg_price=AvgPrice, terminal_state=Terminal, stats=Stats}) ->
     Bar = hd(State#state.history),
-    SellPrice = trade_utils:close(Bar),
+    Price = trade_utils:close(Bar),
+    lager:debug("tester: ~s: sell ~p at ~p, profit: ~p", [trade_utils:to_datetimestr(trade_utils:time(Bar)), Lots, Price, (Lots*Price)-(Lots*AvgPrice)]),
+    NewInfo = {(Lots*Price)/(Lots*AvgPrice), (Lots*Price)-(Lots*AvgPrice)},
+    NewStats = Stats#stats{pl=[NewInfo|Stats#stats.pl]},
+    NewTerminal1 = trade_terminal_state:del_pos_lots(Lots, SecID, Terminal),
+    NewTerminal2 = trade_terminal_state:add_money(Lots*Price, NewTerminal1),
+    State#state{terminal_state=NewTerminal2, stats=NewStats}.
 
-%     lager:debug("tester: ~s: sell ~p at ~p", [trade_utils:to_datetimestr(trade_utils:time(Bar)), Lots, SellPrice]),
+print_report(#stats{pl=PL}) ->
+    PL2 = element(1, lists:unzip(PL)),
+    lager:info("Geometric mean: ~p~n", [trade_utils:geometric_mean(PL2)]),
+    lager:info("Total bids: ~p~n", [length(PL2)]),
+    lager:info("Win bids: ~p~n", [length(lists:filter(fun(X) -> X > 1 end, PL2))]),
+    lager:info("Percent of wins: ~.2f%~n", [length(lists:filter(fun(X) -> X > 1 end, PL2))/length(PL2)*100])
+    .
 
-    PL  = (SellPrice * Lots) / (AvgPrice * Lots),
-    OP  = {trade_utils:time(Bar), -Lots, SellPrice},
-    BID = {trade_utils:time(Bar), AvgPrice*Lots, SellPrice*Lots},
-    NewStats = Stats#stats{
-        pl     = [PL |Stats#stats.pl],
-        bids   = [BID|Stats#stats.bids],
-        ops    = [OP |Stats#stats.ops],
-        equity = Money+(SellPrice * Lots)
-    },
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-    State#state{lots=L-Lots, money=Money+(SellPrice * Lots), stats=NewStats};
+get_history(Symbol, Period, From, undefined) ->
+    trade_history:get_history(Symbol, Period, From);
 
-handle_signal(_, State) ->
-    State.
+get_history(Symbol, Period, From, To) ->
+    trade_history:get_history(Symbol, Period, From, To).
 
-print_report(#stats{pl=PL, bids=Bids, equity=Money}) ->
-    lager:info("Final equity: ~p~n", [Money]),
-    lager:info("Geometric mean: ~p~n", [trade_utils:geometric_mean(PL)]),
-    lager:info("Total bids: ~p~n", [length(PL)]),
-    lager:info("Total win bids: ~p~n", [length(lists:filter(fun(X) -> X > 1 end, PL))]),
-    lager:info("Total loose bids: ~p~n", [length(lists:filter(fun(X) -> X =< 1 end, PL))]),
-    lager:info("Maximal win: ~p~n", [lists:max(lists:map(fun({_,X,Y}) -> Y - X end, Bids))]),
-    lager:info("Maximal loose: ~p~n", [lists:min(lists:map(fun({_,X,Y}) -> Y - X end, Bids))]).
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+start_threaded(Options, Threads) ->
+    run_jobs(lists:map(fun make_job/1, Options), Threads).
+
+make_job({Symbol, Period, From, Strategy, Options, TestOptions}) ->
+    fun() -> trade_tester:start(Symbol, Period, From, Strategy, Options, TestOptions) end.
+
+run_jobs(Jobs, Threads) when is_integer(Threads) ->
+    Workers = spawn_workers(Threads),
+    Res = run_jobs(Jobs, Workers),
+    stop_workers(Workers),
+    Res;
+
+run_jobs(Jobs, Workers) when is_list(Workers) ->
+    run_jobs_loop(Jobs, queue:from_list(Workers), [], []).
+
+run_jobs_loop([], _, [], Acc) -> lists:reverse(Acc);
+run_jobs_loop([], Idle, Busy, Acc) -> wait_for_result([], Idle, Busy, Acc);
+
+run_jobs_loop(Jobs, Idle, Busy, Acc) ->
+    case queue:out(Idle) of
+        {empty, _} ->
+            wait_for_result(Jobs, Idle, Busy, Acc);
+        {{value, Pid}, NewIdle} ->
+            Pid ! {job, self(), hd(Jobs)},
+            run_jobs_loop(tl(Jobs), NewIdle, [Pid|Busy], Acc)
+    end.
+
+wait_for_result(Jobs, Idle, Busy, Acc) ->
+    receive
+        {job, Pid, Res} ->
+            run_jobs_loop(Jobs, queue:in(Pid, Idle), lists:delete(Pid, Busy), [Res|Acc])
+    end.
+
+spawn_workers(N) ->
+    [ spawn_link( fun worker/0 ) || _ <- lists:seq(1, N) ].
+
+stop_workers(Workers) ->
+    [ Pid ! stop || Pid <- Workers ].
+
+
+worker() ->
+    receive
+        {job, Pid, Job} ->
+            Pid ! {job, self(), catch Job()},
+            worker();
+        stop ->
+            ok
+    end.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+

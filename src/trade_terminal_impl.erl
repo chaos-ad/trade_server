@@ -124,66 +124,69 @@ update_terminal({result,[{success,_}],[]}, State=#terminal_state{}) ->
     State; %% Ignoring result
 
 update_terminal({server_status, [{id, ID}, {connected, "true"}, {recover, "true"}], _}, State=#terminal_state{}) ->
-    State#terminal_state{server_status=#server_status{id=list_to_integer(ID), connected=true, recover=true}};
+    NewStatus = #server_status{id=list_to_integer(ID), connected=true, recover=true},
+    trade_terminal_state:set_status(NewStatus, State);
 
 update_terminal({server_status, [{id, ID}, {connected, "true"}], _}, State=#terminal_state{}) ->
-    State#terminal_state{server_status=#server_status{id=list_to_integer(ID), connected=true, recover=false}};
+    NewStatus = #server_status{id=list_to_integer(ID), connected=true, recover=false},
+    trade_terminal_state:set_status(NewStatus, State);
 
 update_terminal({server_status, [{id, ID}, {connected, "false"}], _}, State=#terminal_state{}) ->
     exit(disconnected),
-    State#terminal_state{server_status=#server_status{id=list_to_integer(ID), connected=false, recover=false}};
+    NewStatus = #server_status{id=list_to_integer(ID), connected=false, recover=false},
+    trade_terminal_state:set_status(NewStatus, State);
 
 update_terminal({server_status, [{connected, "error"}], _}, State=#terminal_state{}) ->
     %% exit(disconnected),
-    State#terminal_state{server_status=#server_status{connected=false, recover=false}};
+    trade_terminal_state:set_status(#server_status{connected=false, recover=false}, State);
 
-update_terminal({client, [{id,ID},{remove,"true"}], []}, State=#terminal_state{clients=Clients}) ->
-    State#terminal_state{clients=lists:keydelete(ID, 2, Clients)};
+update_terminal({client, [{id,ID},{remove,"true"}], []}, State=#terminal_state{}) ->
+    trade_terminal_state:del_client(ID, State);
 
-update_terminal({client, [{id, ID},{remove,"false"}], Args}, State=#terminal_state{clients=Clients}) ->
-    Currency = get_value(currency, Args),
-    Type     = get_value(atom, type, Args),
-    Client   =
-    case Type of
+update_terminal({client, [{id, ID},{remove,"false"}], Args}, State=#terminal_state{}) ->
+    Client = #client{id=ID, type=get_value(atom, type, Args), currency=get_value(currency, Args)},
+    case Client#client.type of
         spot ->
-            #client{id=ID, type=Type, currency=Currency};
+            trade_terminal_state:set_client(Client, State);
         leverage ->
-            Intraday  = get_value(integer, ml_intraday, Args),
-            Overnight = get_value(integer, ml_overnight, Args),
-            #client{id=ID, type=Type, currency=Currency, ml_intraday=Intraday, ml_overnight=Overnight};
+            NewClient = Client#client{
+                ml_intraday  = get_value(integer, ml_intraday, Args),
+                ml_overnight = get_value(integer, ml_overnight, Args)
+            },
+            trade_terminal_state:set_client(NewClient, State);
         margin_level ->
-            Call     = get_value(ml_call, Args),
-            Close    = get_value(ml_close, Args),
-            Restrict = get_value(ml_restrict, Args),
-            #client{id=ID, type=Type, currency=Currency, ml_call=Call, ml_close=Close, ml_restrict=Restrict}
-    end,
-    State#terminal_state{clients=[Client|lists:keydelete(ID, 2, Clients)]};
+            NewClient = Client#client{
+                ml_call     = get_value(ml_call, Args),
+                ml_close    = get_value(ml_close, Args),
+                ml_restrict = get_value(ml_restrict, Args)
+            },
+            trade_terminal_state:set_client(NewClient, State)
+    end;
 
 update_terminal({markets,[],MarketList}, State=#terminal_state{}) ->
-    State#terminal_state{markets=lists:map(fun make_record/1, MarketList)};
+    trade_terminal_state:set_markets(lists:map(fun make_record/1, MarketList), State);
 
-update_terminal({securities,[],SecurityList}, State=#terminal_state{securities=Securities}) ->
+update_terminal({securities,[],SecurityList}, State=#terminal_state{}) ->
     NewSecurities = lists:map(fun make_record/1, SecurityList),
-    UpdFn = fun(Sec, Result) ->  lists:keystore(Sec#security.secid, 2, Result, Sec) end,
-    State#terminal_state{securities=lists:foldl(UpdFn, Securities, NewSecurities)};
+    lists:foldl(fun(X, S) -> trade_terminal_state:set_security(X, S) end, State, NewSecurities);
 
 update_terminal({candlekinds,[],CandleList}, State=#terminal_state{}) ->
-    State#terminal_state{candlekinds=lists:map(fun make_record/1, CandleList)};
+    trade_terminal_state:set_candlekinds(lists:map(fun make_record/1, CandleList), State);
 
-update_terminal({positions,[],PositionList}, State=#terminal_state{positions=Positions}) ->
+update_terminal({positions,[],PositionList}, State=#terminal_state{}) ->
     NewPositions = lists:map(fun make_record/1, PositionList),
-    State#terminal_state{positions=update_positions(NewPositions, Positions)};
+    lists:foldl(fun(X, S) -> trade_terminal_state:merge_pos(X, S) end, State, NewPositions);
 
 update_terminal({overnight,[{status,Overnight}],[]}, State=#terminal_state{}) ->
-    State#terminal_state{overnight=list_to_atom(Overnight)};
+    trade_terminal_state:set_overnight(list_to_atom(Overnight), State);
 
-update_terminal({trades, [], TradeList}, State=#terminal_state{trades=Trades}) ->
+update_terminal({trades, [], TradeList}, State=#terminal_state{}) ->
     NewTrades = lists:map(fun make_record/1, TradeList),
-    State#terminal_state{trades=update_trades(NewTrades, Trades)};
+    lists:foldl(fun(X, S) -> trade_terminal_state:set_trade(X, S) end, State, NewTrades);
 
-update_terminal({orders, [], OrderList}, State=#terminal_state{orders=Orders}) ->
+update_terminal({orders, [], OrderList}, State=#terminal_state{}) ->
     NewOrders = lists:map(fun make_record/1, OrderList),
-    State#terminal_state{orders=update_orders(NewOrders, Orders)};
+    lists:foldl(fun(X, S) -> trade_terminal_state:merge_order(X, S) end, State, NewOrders);
 
 update_terminal(_Data, State) ->
 %     lager:debug("Data ignored: ~p", [_Data]),
@@ -301,49 +304,6 @@ make_secid(ID) -> "<secid>" ++ integer_to_list(ID) ++ "</secid>".
 make_secids(Mode, List) ->
     Secs = lists:map(fun({M, ID}) when M =:= Mode -> make_secid(ID); (_) -> [] end, List),
     lists:flatten(io_lib:format("<~p>~s</~p>", [Mode, Secs, Mode])).
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-update_position(Pos=#money_position{}, Positions) ->
-    lists:keystore(money_position, 1, Positions, Pos);
-
-update_position(NewPos=#sec_position{secid=ID}, Positions) ->
-    case lists:keyfind(ID, 3, Positions) of
-        false           ->
-%             lager:debug("Adding new position: ~p", [NewPos]),
-            [NewPos|Positions];
-        OldPos ->
-            List = lists:zip(tl(tuple_to_list(OldPos)), tl(tuple_to_list(NewPos))),
-            Merged = lists:map(fun({X, undefined}) -> X; ({_, X}) -> X end, List),
-            Result = list_to_tuple([sec_position|Merged]),
-%             lager:debug("Old position: ~300p~nUpd position: ~300p~nNew position: ~300p", [OldPos, NewPos, Result]),
-            lists:keyreplace(ID, 3, Positions, Result)
-    end.
-
-update_positions(NewPositions, Positions) ->
-    lists:foldl(fun(Pos, PosList) -> update_position(Pos, PosList) end, Positions, NewPositions).
-
-update_trade(Trade=#trade{secid=ID}, Trades) ->
-    lists:keystore(ID, 2, Trades, Trade).
-
-update_trades(NewTrades, Trades) ->
-    lists:foldl(fun(Trade, TradeList) -> update_trade(Trade, TradeList) end, Trades, NewTrades).
-
-update_order(NewOrder=#order{transactionid=ID}, Orders) ->
-    case lists:keyfind(ID, 2, Orders) of
-        false             ->
-%             lager:debug("Adding new order: ~p", [NewOrder]),
-            [NewOrder|Orders];
-        OldOrder ->
-            List = lists:zip(tl(tuple_to_list(OldOrder)), tl(tuple_to_list(NewOrder))),
-            Merged = lists:map(fun({X, undefined}) -> X; ({_, X}) -> X end, List),
-            Result = list_to_tuple([order|Merged]),
-%             lager:debug("Old order: ~300p~nUpd order: ~300p~nNew order: ~300p", [OldOrder, NewOrder, Result]),
-            lists:keyreplace(ID, 2, Orders, Result)
-    end.
-
-update_orders(NewOrders, Orders) ->
-    lists:foldl(fun(Order, OrderList) -> update_order(Order, OrderList) end, Orders, NewOrders).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
