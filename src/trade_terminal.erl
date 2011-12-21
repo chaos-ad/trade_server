@@ -119,9 +119,27 @@ handle_call(Data, {From, _}, State) ->
     lager:debug("Unexpected call from ~p received: ~p", [From, Data]),
     {noreply, State}.
 
-handle_cast(login, State) ->
-    {ok, NewState} = login(State),
-    {noreply, NewState};
+handle_cast(login, State=#state{login_info=#login_info{attempts=Attempts, errors=Attempts}}) ->
+    {stop, login_failed, State};
+
+handle_cast(login, State=#state{account=Account, login_info=LoginInfo}) ->
+    #login_info{name=Name, pass=Pass, host=Host, port=Port} = LoginInfo,
+    #login_info{interval=Interval, attempts=Attempts, errors=Errors} = LoginInfo,
+    lager:info("Terminal '~p': logging in...", [Account]),
+    case handle_request(login, [Name, Pass, Host, Port], State) of
+        {ok, NewState} ->
+            true = gproc:add_local_name(Account),
+            lager:info("Terminal '~p': logged successfully", [Account]),
+            {ok, NewState#state{login_info=LoginInfo#login_info{errors=0}}};
+        {{error, Error}, _} when is_list(Error) ->
+            lager:warning("Terminal '~p': login failed: '~ts'; retry in ~p seconds (~p left)", [Account, Error, Interval, Attempts-Errors]),
+            timer:apply_after(Interval*1000, gen_server, cast, [self(), login]),
+            {noreply, State#state{login_info=LoginInfo#login_info{errors=Errors+1}}};
+        {{error, Error}, _} ->
+            lager:warning("Terminal '~p': login failed: ~p; retry in ~p seconds (~p left)", [Account, Error, Interval, Attempts-Errors]),
+            timer:apply_after(Interval*1000, gen_server, cast, [self(), login]),
+            {noreply, State#state{login_info=LoginInfo#login_info{errors=Errors+1}}}
+    end;
 
 handle_cast(Data, State) ->
     lager:debug("Unexpected cast received: ~p", [Data]),
@@ -129,8 +147,8 @@ handle_cast(Data, State) ->
 
 handle_info({tcp, Socket, RawData}, State=#state{socket=Socket, terminal=Terminal}) ->
     Data = trade_terminal_utils:parse(RawData),
-%     lager:debug("Data received: ~ts", [RawData]),
-    lager:debug("Data parsed: ~p", [Data]),
+    lager:debug("Data received: '~ts'", [RawData]),
+%     lager:debug("Data parsed: ~p", [Data]),
     {noreply, State#state{terminal=update_terminal(Data, Terminal)}};
 
 handle_info({tcp_error, Socket, Error}, State=#state{socket=Socket}) ->
@@ -150,30 +168,6 @@ code_change(_, State, _) ->
     {ok, State}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-login(#state{login_info=#login_info{attempts=Attempts, errors=Attempts}}) ->
-    exit(login_failed);
-
-login(State=#state{account=Account, login_info=LoginInfo}) ->
-
-    #login_info{name=Name, pass=Pass, host=Host, port=Port} = LoginInfo,
-    #login_info{interval=Interval, attempts=Attempts, errors=Errors} = LoginInfo,
-
-    lager:info("Terminal '~p': logging in...", [Account]),
-    case handle_request(login, [Name, Pass, Host, Port], State) of
-        {ok, NewState} ->
-            lager:info("Terminal '~p': logged successfully", [Account]),
-            {ok, NewState#state{login_info=LoginInfo#login_info{errors=0}}};
-        {{error, Error}, _} when is_list(Error) ->
-            lager:error("Terminal '~p': login failed: '~ts'; retry in ~p seconds (~p left)", [Account, Error, Interval, Attempts-Errors]),
-            timer:sleep(Interval*1000),
-            login(State#state{login_info=LoginInfo#login_info{errors=Errors+1}});
-        {{error, Error}, _} ->
-            lager:error("Terminal '~p': login failed: ~p; retry in ~p seconds (~p left)", [Account, Error, Interval, Attempts-Errors]),
-            timer:sleep(Interval*1000),
-            login(State#state{login_info=LoginInfo#login_info{errors=Errors+1}})
-    end.
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 handle_request(neworder, [Mode, Security, Amount], State=#state{terminal=Terminal}) ->
@@ -205,8 +199,8 @@ read_response(Name, Result, State=#state{socket=Socket, terminal=Terminal}) ->
     case recv_data(Socket) of
         {ok, RawData} ->
             Data = trade_terminal_utils:parse(RawData),
-%             lager:debug("Data received: ~ts", [RawData]),
-            lager:debug("Data parsed: ~p", [Data]),
+            lager:debug("Data received: '~ts'", [RawData]),
+%             lager:debug("Data parsed: ~p", [Data]),
             NewState = State#state{terminal=update_terminal(Data, Terminal)},
             case handle_response(Name, Data, Result) of
                 noreply        -> read_response(Name, Result, NewState);
@@ -225,6 +219,7 @@ recv_data(Socket) ->
     end.
 
 send_request(Request, Socket) ->
+    lager:debug("Data sent: '~ts'", [Request]),
     gen_tcp:send(Socket, Request).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

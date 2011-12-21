@@ -1,62 +1,42 @@
 -module(bar_strategy).
--behaviour(gen_server).
+-behaviour(base_strategy).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%% gen_server callbacks:
--export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
-
-%% api:
--export([start_link/2, stop/1, stop/2, update/1]).
+-export([start/3, stop/1, handle_cast/2]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--record(state, {terminal, strategy, strategy_state, security, period, depth, lots, interval, last_bar}).
+-record(state, {name, terminal, strategy, strategy_state, security, period, depth, last_bar}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-start_link(Terminal, Options) ->
-    gen_server:start_link(?MODULE, {Terminal, Options}, []).
-
-stop(Pid) ->
-    stop(Pid, normal).
-
-stop(Pid, Reason) ->
-    gen_server:call(Pid, {stop, Reason}).
-
-update(Pid) ->
-    gen_server:cast(Pid, update).
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-init({Terminal, Options}) ->
-    Strategy            = proplists:get_value(strategy,         Options),
-    StrategyOptions     = proplists:get_value(strategy_options, Options),
+start(Name, Terminal, Options) ->
+    lager:info("bar_strategy options: ~p", [Options]),
+    {Strategy, StrategyOptions} = proplists:get_value(strategy, Options),
+    lager:info("bar_strategy strategy options: ~p", [StrategyOptions]),
     State = #state{
+        name            = Name,
         terminal        = Terminal,
         strategy        = Strategy,
         strategy_state  = Strategy:start(StrategyOptions),
         security        = proplists:get_value(security, Options),
         period          = proplists:get_value(period, Options),
-        depth           = proplists:get_value(depth, Options, 1000),
-        interval        = proplists:get_value(interval, Options, 60)
+        depth           = proplists:get_value(depth, Options, 1000)
     },
-    timer:apply_interval(State#state.interval * 1000, ?MODULE, update, [self()]),
+    UpdateInterval = proplists:get_value(update_interval, Options, 60),
+    timer:apply_interval(UpdateInterval * 1000, gen_server, cast, [self(), update]),
     {ok, State}.
 
-handle_call({stop, Reason}, _, State) ->
-    {stop, Reason, ok, State};
-
-handle_call(_, _, State) ->
-    {noreply, ok, State}.
-
-handle_cast(update, State=#state{security=Security, period=Period, depth=Depth, last_bar=LastBar}) ->
+handle_cast(update, State=#state{name=Name, security=Security, period=Period, depth=Depth, last_bar=LastBar}) ->
+    lager:debug("Strategy '~p': updating...", [Name]),
     Strategy = State#state.strategy,
     StrategyState = State#state.strategy_state,
     TerminalState = trade_terminal:get_state(State#state.terminal),
     case hd(trade_terminal:get_history(Security, Period, 1, true)) =:= LastBar of
         true  -> State;
         false ->
+            lager:debug("Strategy '~p': really updating...", [Name]),
             History = trade_terminal:get_history(Security, Period, Depth, true),
             handle_signal( Strategy:update(History, TerminalState, StrategyState), State )
     end;
@@ -64,14 +44,8 @@ handle_cast(update, State=#state{security=Security, period=Period, depth=Depth, 
 handle_cast(_, State) ->
     {noreply, State}.
 
-handle_info(_, State) ->
-    {noreply, State}.
-
-terminate(_, _) ->
+stop(_) ->
     ok.
-
-code_change(_, State, _) ->
-    {ok, State}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
