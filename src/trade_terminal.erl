@@ -14,7 +14,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -record(login_info, {name, pass, host, port, errors=0, attempts, interval}).
--record(state, {account, socket, terminal, login_info}).
+-record(state, {account, socket, terminal=#terminal_state{}, login_info=#login_info{}}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -129,7 +129,8 @@ handle_cast(Data, State) ->
 
 handle_info({tcp, Socket, RawData}, State=#state{socket=Socket, terminal=Terminal}) ->
     Data = trade_terminal_utils:parse(RawData),
-    lager:debug("Data received from socket: ~p", [RawData]),
+%     lager:debug("Data received: ~ts", [RawData]),
+    lager:debug("Data parsed: ~p", [Data]),
     {noreply, State#state{terminal=update_terminal(Data, Terminal)}};
 
 handle_info({tcp_error, Socket, Error}, State=#state{socket=Socket}) ->
@@ -204,6 +205,8 @@ read_response(Name, Result, State=#state{socket=Socket, terminal=Terminal}) ->
     case recv_data(Socket) of
         {ok, RawData} ->
             Data = trade_terminal_utils:parse(RawData),
+%             lager:debug("Data received: ~ts", [RawData]),
+            lager:debug("Data parsed: ~p", [Data]),
             NewState = State#state{terminal=update_terminal(Data, Terminal)},
             case handle_response(Name, Data, Result) of
                 noreply        -> read_response(Name, Result, NewState);
@@ -283,7 +286,7 @@ update_terminal({candlekinds,[],CandleList}, State=#terminal_state{}) ->
 
 update_terminal({positions,[],PositionList}, State=#terminal_state{}) ->
     NewPositions = lists:map(fun trade_terminal_utils:make_record/1, PositionList),
-    lists:foldl(fun(X, S) -> trade_terminal_state:merge_pos(X, S) end, State, NewPositions);
+    lists:foldl(fun(X, S) -> trade_terminal_state:merge_positions(X, S) end, State, NewPositions);
 
 update_terminal({overnight,[{status,Overnight}],[]}, State=#terminal_state{}) ->
     trade_terminal_state:set_overnight(list_to_atom(Overnight), State);
