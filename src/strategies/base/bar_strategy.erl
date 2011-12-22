@@ -56,14 +56,14 @@ handle_signal(NewLots, State=#state{terminal=Terminal, security=Security}) ->
         Lots when Lots =:= NewLots -> State
     end.
 
-buy(Lots, State=#state{terminal=Terminal, security=Security}) ->
-    lager:info("strategy ~p: buying  ~p lots of ~p...", [?MODULE, Lots, Security]),
-    Result = trade_terminal:buy_order(Terminal, Security, Lots),
-    lager:info("strategy ~p: buying  ~p lots of ~p: ~p", [?MODULE, Lots, Security, Result]),
+buy(Lots, State=#state{name=Name, terminal=Terminal, security=Security}) ->
+    lager:info("strategy ~p: equity: ~p", [Name, trade_terminal:get_money(Terminal)]),
+    lager:info("strategy ~p: buying  ~p lots of ~p...", [Name, Lots, Security]),
+    {ok, _} = trade_terminal:buy_order(Terminal, Security, Lots),
     State.
 
-sell(Lots, State=#state{terminal=Terminal, security=Security}) ->
-    lager:info("strategy ~p: selling ~p lots of ~p...", [?MODULE, Lots, Security]),
-    Result = trade_terminal:sell_order(Terminal, Security, Lots),
-    lager:info("strategy ~p: selling ~p lots of ~p: ~p", [?MODULE, Lots, Security, Result]),
+sell(Lots, State=#state{name=Name, terminal=Terminal, security=Security}) ->
+    lager:info("strategy ~p: equity: ~p", [Name, trade_terminal:get_money(Terminal)]),
+    lager:info("strategy ~p: selling ~p lots of ~p...", [Name, Lots, Security]),
+    {ok, _} = trade_terminal:sell_order(Terminal, Security, Lots),
     State.
