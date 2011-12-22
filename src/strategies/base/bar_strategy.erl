@@ -58,12 +58,24 @@ handle_signal(NewLots, State=#state{terminal=Terminal, security=Security}) ->
 
 buy(Lots, State=#state{name=Name, terminal=Terminal, security=Security}) ->
     lager:info("strategy ~p: equity: ~p", [Name, trade_terminal:get_money(Terminal)]),
-    lager:info("strategy ~p: buying  ~p lots of ~p...", [Name, Lots, Security]),
-    {ok, _} = trade_terminal:buy_order(Terminal, Security, Lots),
+    case trade_terminal:buy_order(Terminal, Security, Lots) of
+        {ok, ReqID} ->
+            lager:info("strategy ~p: buying  ~p lots of ~p: ~p", [Name, Lots, Security, ReqID]);
+        {error, Error} when is_list(Error) ->
+            lager:warning("strategy ~p: buying  ~p lots of ~p: '~ts'", [Name, Lots, Security, Error]);
+        {error, Error} ->
+            lager:warning("strategy ~p: buying  ~p lots of ~p: ~p", [Name, Lots, Security, Error])
+    end,
     State.
 
 sell(Lots, State=#state{name=Name, terminal=Terminal, security=Security}) ->
     lager:info("strategy ~p: equity: ~p", [Name, trade_terminal:get_money(Terminal)]),
-    lager:info("strategy ~p: selling ~p lots of ~p...", [Name, Lots, Security]),
-    {ok, _} = trade_terminal:sell_order(Terminal, Security, Lots),
+    case trade_terminal:sell_order(Terminal, Security, Lots) of
+        {ok, ReqID} ->
+            lager:info("strategy ~p: selling ~p lots of ~p: ~p", [Name, Lots, Security, ReqID]);
+        {error, Error} when is_list(Error) ->
+            lager:warning("strategy ~p: selling ~p lots of ~p: '~ts'", [Name, Lots, Security, Error]);
+        {error, Error} ->
+            lager:warning("strategy ~p: selling ~p lots of ~p: ~p", [Name, Lots, Security, Error])
+    end,
     State.
