@@ -46,7 +46,7 @@ update(History, _Terminal, State=#state{days_in_pos=0}) ->
 
 %% Мы продержали сделку N дней из M необходимых: держим дальше
 update(_History, _Terminal, State=#state{days_in_pos=N, hold=M, lots=Lots}) when N =< M ->
-    {round(N/M*Lots), State#state{days_in_pos=N+1}};
+    {Lots, State#state{days_in_pos=N+1}};
 
 
 %% Мы продержали сделку M дней из M необходимых: закрываем

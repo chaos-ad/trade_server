@@ -63,10 +63,11 @@ del_position(SecID, State=#terminal_state{positions=Positions}) ->
 get_position_lots(SecID, State=#terminal_state{}) ->
     case get_position(SecID, State) of
         undefined -> 0;
-        #sec_position{saldo=Lots} -> Lots
+        #sec_position{saldo=Saldo} -> Saldo div get_lotsize(SecID, State)
     end.
 
-add_position_lots(Delta, SecID, State=#terminal_state{}) ->
+add_position_lots(Lots, SecID, State=#terminal_state{}) ->
+    Delta = round(Lots * get_lotsize(SecID, State)),
     case get_position(SecID, State) of
         undefined ->
             NewPos = #sec_position{secid=SecID, saldo=Delta},
@@ -77,11 +78,12 @@ add_position_lots(Delta, SecID, State=#terminal_state{}) ->
     end.
 
 del_position_lots(Lots, SecID, State=#terminal_state{}) ->
+    Delta = round(Lots * get_lotsize(SecID, State)),
     case get_position(SecID, State) of
         undefined -> State;
-        Pos = #sec_position{saldo=Lots} -> del_position(Pos, State);
+        Pos = #sec_position{saldo=Delta} -> del_position(Pos, State);
         Pos = #sec_position{saldo=Saldo} ->
-            NewPos = Pos#sec_position{saldo=Saldo-Lots},
+            NewPos = Pos#sec_position{saldo=Saldo-Delta},
             set_position(NewPos, State)
     end.
 
@@ -187,6 +189,10 @@ del_security(#security{secid=SecID}, State=#terminal_state{}) ->
 del_security(SecID, State=#terminal_state{securities=Securities}) ->
     State#terminal_state{securities=lists:keydelete(SecID, 2, Securities)}.
 
+get_lotsize(SecID, State=#terminal_state{}) ->
+    SecInfo = get_security(SecID, State),
+    SecInfo#security.lotsize.
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 get_orders(#terminal_state{orders=Orders}) ->
@@ -249,4 +255,4 @@ make_securities() ->
     lists:map(fun make_security/1, trade_db:get_all_symbols_info()).
 
 make_security({symbol, ID, Code, Name, Market}) ->
-    #security{secid=ID, seccode=trade_utils:to_list(Code), market=Market, shortname=Name}.
+    #security{secid=ID, seccode=trade_utils:to_list(Code), market=Market, shortname=Name, lotsize=1}.

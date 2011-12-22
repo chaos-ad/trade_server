@@ -32,23 +32,64 @@ stop(Pid, Reason) ->
 get_state(Pid) ->
     gen_server:call(Pid, get_terminal_state).
 
-get_candlekinds(Pid) ->
-    trade_terminal_state:get_candlekinds(get_state(Pid)).
+get_status(Pid) ->
+    trade_terminal_state:get_status(get_state(Pid)).
+
+get_overnight(Pid) ->
+    trade_terminal_state:get_overnight(get_state(Pid)).
+
+get_client(Pid, ClientID) ->
+    trade_terminal_state:get_client(ClientID, get_state(Pid)).
 
 get_markets(Pid) ->
     trade_terminal_state:get_markets(get_state(Pid)).
 
+get_candlekinds(Pid) ->
+    trade_terminal_state:get_candlekinds(get_state(Pid)).
+
 get_securities(Pid) ->
     trade_terminal_state:get_securities(get_state(Pid)).
+
+get_security(Pid, Security) ->
+    State = get_state(Pid),
+    SecID = trade_terminal_state:get_security_id(Security, State),
+    trade_terminal_state:get_security(SecID, State).
+
+get_security_id(Pid, Security) ->
+    trade_terminal_state:get_security_id(Security, get_state(Pid)).
 
 get_positions(Pid) ->
     trade_terminal_state:get_positions(get_state(Pid)).
 
+get_position(Pid, Security) ->
+    State = get_state(Pid),
+    SecID = trade_terminal_state:get_security_id(Security, State),
+    trade_terminal_state:get_position(SecID, State).
+
+get_position_lots(Pid, Security) ->
+    State = get_state(Pid),
+    SecID = trade_terminal_state:get_security_id(Security, State),
+    trade_terminal_state:get_position_lots(SecID, State).
+
+get_money(Pid) ->
+    trade_terminal_state:get_money(get_state(Pid)).
+
+get_money_position(Pid) ->
+    trade_terminal_state:get_money_position(get_state(Pid)).
+
 get_orders(Pid) ->
     trade_terminal_state:get_orders(get_state(Pid)).
 
+get_order(Pid, OrderID) ->
+    trade_terminal_state:get_order(OrderID, get_state(Pid)).
+
 get_trades(Pid) ->
     trade_terminal_state:get_trades(get_state(Pid)).
+
+get_trade(Pid, Security) ->
+    State = get_state(Pid),
+    SecID = trade_terminal_state:get_security_id(Security, State),
+    trade_terminal_state:get_trade(SecID, State).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -130,7 +171,7 @@ handle_cast(login, State=#state{account=Account, login_info=LoginInfo}) ->
         {ok, NewState} ->
             true = gproc:add_local_name(Account),
             lager:info("Terminal '~p': logged successfully", [Account]),
-            {ok, NewState#state{login_info=LoginInfo#login_info{errors=0}}};
+            {noreply, NewState#state{login_info=LoginInfo#login_info{errors=0}}};
         {{error, Error}, _} when is_list(Error) ->
             lager:warning("Terminal '~p': login failed: '~ts'; retry in ~p seconds (~p left)", [Account, Error, Interval, Attempts-Errors]),
             timer:apply_after(Interval*1000, gen_server, cast, [self(), login]),
