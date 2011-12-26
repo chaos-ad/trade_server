@@ -7,7 +7,7 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3]).
 
 %% api:
--export([start_link/4, stop/1, stop/2]).
+-export([start_link/4, get_stats/1, get_status/1, stop/1, stop/2]).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -31,6 +31,16 @@ stop(Pid) ->
 stop(Pid, Reason) ->
     gen_server:call(Pid, {stop, Reason}).
 
+get_stats(undefined) ->
+    [];
+
+get_stats(Pid) ->
+    gen_server:call(Pid, get_stats).
+
+get_status(Pid) ->
+    proplists:get_value(status, get_stats(Pid), stopped).
+
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 init({Name, Terminal, Module, Options}) ->
@@ -41,8 +51,17 @@ init({Name, Terminal, Module, Options}) ->
 handle_call({stop, Reason}, _, State) ->
     {stop, Reason, ok, State};
 
+handle_call(get_stats, _, State=#state{data=undefined}) ->
+    {reply, [{status, await}], State};
+
+handle_call(get_stats, _, State=#state{module=Module, data=Data}) ->
+    case erlang:function_exported(Module, get_stats, 1) of
+        false -> {reply, [{status, running}], State};
+        true  -> {reply, [{status, running}] ++ Module:get_stats(Data), State}
+    end;
+
 handle_call(Msg, From, State=#state{module=Module, data=Data}) ->
-    case has_function(Module, handle_call, 3) of
+    case erlang:function_exported(Module, handle_call, 3) of
         true  ->
             case Module:handle_call(Msg, From, Data) of
                 {noreply,      NewData} -> {noreply,      State#state{data=NewData}};
@@ -54,7 +73,7 @@ handle_call(Msg, From, State=#state{module=Module, data=Data}) ->
     end.
 
 handle_cast(Msg, State=#state{module=Module, data=Data}) ->
-    case has_function(Module, handle_cast, 2) of
+    case erlang:function_exported(Module, handle_cast, 2) of
         true  ->
             case Module:handle_cast(Msg, Data) of
                 {noreply, NewData} -> {noreply, State#state{data=NewData}};
@@ -75,7 +94,7 @@ handle_info({gproc, unreg, _, {n,l,Terminal}}, State=#state{term=Terminal}) ->
     {stop, normal, State};
 
 handle_info(Msg, State=#state{module=Module, data=Data}) ->
-    case has_function(Module, handle_info, 2) of
+    case erlang:function_exported(Module, handle_info, 2) of
         true  ->
             case Module:handle_info(Msg, Data) of
                 {noreply, NewData} -> {noreply, State#state{data=NewData}};
@@ -85,6 +104,9 @@ handle_info(Msg, State=#state{module=Module, data=Data}) ->
             {noreply, State}
     end.
 
+terminate(_, #state{data=undefined}) ->
+    ok;
+
 terminate(_, #state{name=Name, module=Module, data=Data}) ->
     Module:stop(Data),
     lager:info("Strategy '~p': stopped", [Name]),
@@ -92,10 +114,5 @@ terminate(_, #state{name=Name, module=Module, data=Data}) ->
 
 code_change(_, State, _) ->
     {ok, State}.
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-has_function(Module, Function, Arity) ->
-    erlang:function_exported(Module, Function, Arity).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

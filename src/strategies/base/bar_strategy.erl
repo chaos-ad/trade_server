@@ -3,7 +3,12 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--export([start/3, stop/1, handle_cast/2]).
+-export([start/3, stop/1, get_stats/1, handle_cast/2]).
+
+-export([behaviour_info/1]).
+
+behaviour_info(callbacks) -> [{start, 1}, {update, 3}, {stop, 1}];
+behaviour_info(_) -> undefined.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -41,8 +46,16 @@ handle_cast(update, State=#state{terminal=Terminal, security=Security, period=Pe
 handle_cast(_, State) ->
     {noreply, State}.
 
-stop(_) ->
-    ok.
+get_stats(#state{terminal=Terminal, strategy=Strategy, strategy_state=StrategyState}) ->
+    Money = trade_terminal_state:get_money( trade_terminal:get_state(Terminal) ),
+    Stats = [{equity, Money}],
+    case erlang:function_exported(Strategy, get_stats, 1) of
+        false -> Stats;
+        true  -> Stats ++ Strategy:get_stats(StrategyState)
+    end.
+
+stop(#state{strategy=Strategy, strategy_state=StrategyState}) ->
+    Strategy:stop(StrategyState).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
