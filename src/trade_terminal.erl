@@ -173,11 +173,11 @@ handle_cast(login, State=#state{account=Account, login_info=LoginInfo}) ->
             lager:info("Terminal '~p': logged successfully", [Account]),
             {noreply, NewState#state{login_info=LoginInfo#login_info{errors=0}}};
         {{error, Error}, _} when is_list(Error) ->
-            lager:warning("Terminal '~p': login failed: '~ts'; retry in ~p seconds (~p left)", [Account, Error, Interval, Attempts-Errors]),
+            lager:error("Terminal '~p': login failed: '~ts'; retry in ~p seconds (~p left)", [Account, Error, Interval, Attempts-Errors]),
             timer:apply_after(Interval*1000, gen_server, cast, [self(), login]),
             {noreply, State#state{login_info=LoginInfo#login_info{errors=Errors+1}}};
         {{error, Error}, _} ->
-            lager:warning("Terminal '~p': login failed: ~p; retry in ~p seconds (~p left)", [Account, Error, Interval, Attempts-Errors]),
+            lager:error("Terminal '~p': login failed: ~p; retry in ~p seconds (~p left)", [Account, Error, Interval, Attempts-Errors]),
             timer:apply_after(Interval*1000, gen_server, cast, [self(), login]),
             {noreply, State#state{login_info=LoginInfo#login_info{errors=Errors+1}}}
     end;
