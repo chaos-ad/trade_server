@@ -1,0 +1,17 @@
+%% -*- erlang -*-
+{application, trade_server,
+ [
+  {description, "Trade server"},
+  {vsn, "0.1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib,
+                  inets,
+                  gproc,
+                  lager,
+                  trade_admin
+                 ]},
+  {mod, { trade_server_app, []}},
+  {env, []}
+ ]}.
