@@ -7,7 +7,7 @@
 
 -export([behaviour_info/1]).
 
-behaviour_info(callbacks) -> [{start, 1}, {update, 3}, {stop, 1}];
+behaviour_info(callbacks) -> [{start, 2}, {update, 3}, {stop, 2}];
 behaviour_info(_) -> undefined.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -18,11 +18,12 @@ behaviour_info(_) -> undefined.
 
 start(Name, Terminal, Options) ->
     {Strategy, StrategyOptions} = proplists:get_value(strategy, Options),
+    TerminalState = trade_terminal:get_state(Terminal),
     State = #state{
         name            = Name,
         terminal        = Terminal,
         strategy        = Strategy,
-        strategy_state  = Strategy:start(StrategyOptions),
+        strategy_state  = Strategy:start(TerminalState, StrategyOptions),
         security        = proplists:get_value(security, Options),
         period          = proplists:get_value(period, Options),
         depth           = proplists:get_value(depth, Options, 1000)
@@ -54,8 +55,9 @@ get_stats(#state{terminal=Terminal, strategy=Strategy, strategy_state=StrategySt
         true  -> Stats ++ Strategy:get_stats(StrategyState)
     end.
 
-stop(#state{strategy=Strategy, strategy_state=StrategyState}) ->
-    Strategy:stop(StrategyState).
+stop(State=#state{strategy=Strategy, strategy_state=StrategyState}) ->
+    TerminalState = trade_terminal:get_state(State#state.terminal),
+    Strategy:stop(TerminalState, StrategyState).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

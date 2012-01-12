@@ -22,7 +22,7 @@ test(TestOptions, Strategy, StrategyOptions) ->
         history        = [],
         future         = get_history(Symbol, Period, From, To),
         strategy       = Strategy,
-        strategy_state = Strategy:start(StrategyOptions),
+        strategy_state = Strategy:start(Terminal, StrategyOptions),
         terminal_state = Terminal
     },
     test_loop(State).
@@ -30,8 +30,9 @@ test(TestOptions, Strategy, StrategyOptions) ->
 test_loop(State=#state{future=[]}) ->
     Stats         = State#state.stats,
     Strategy      = State#state.strategy,
+    TerminalState = State#state.terminal_state,
     StrategyState = State#state.strategy_state,
-    Strategy:stop(StrategyState),
+    Strategy:stop(TerminalState, StrategyState),
     NewStats = Stats#stats{pl = lists:reverse(Stats#stats.pl)},
     print_report(NewStats),
     NewStats;
@@ -49,7 +50,7 @@ handle_signal({Signal, NewStrategyState}, State) ->
     handle_signal(Signal, State#state{strategy_state=NewStrategyState});
 
 handle_signal(NewLots, State=#state{secid=SecID, terminal_state=Terminal}) ->
-    case trade_terminal_state:get_pos_lots(SecID, Terminal) of
+    case trade_terminal_state:get_position_lots(SecID, Terminal) of
         Lots when Lots  <  NewLots -> buy(NewLots-Lots, State);
         Lots when Lots  >  NewLots -> sell(Lots-NewLots, State);
         Lots when Lots =:= NewLots -> State
@@ -61,10 +62,10 @@ buy(Lots, State=#state{secid=SecID, avg_price=AvgPrice, terminal_state=Terminal}
     case trade_terminal_state:get_money(Terminal) of
         Money when Money <  Lots * Price -> exit(no_money);
         Money when Money >= Lots * Price ->
-            OldLots = trade_terminal_state:get_pos_lots(SecID, Terminal),
+            OldLots = trade_terminal_state:get_position_lots(SecID, Terminal),
             NewAvgPrice = (OldLots*AvgPrice + Lots*Price) / (OldLots+Lots),
             lager:debug("tester: ~s: buy  ~p at ~p, average price: ~p", [trade_utils:to_datetimestr(trade_utils:time(Bar)), Lots, Price, NewAvgPrice]),
-            NewTerminal1 = trade_terminal_state:add_pos_lots(Lots, SecID, Terminal),
+            NewTerminal1 = trade_terminal_state:add_position_lots(Lots, SecID, Terminal),
             NewTerminal2 = trade_terminal_state:del_money(Lots*Price, NewTerminal1),
             State#state{avg_price=NewAvgPrice, terminal_state=NewTerminal2}
     end.
@@ -75,7 +76,7 @@ sell(Lots, State=#state{secid=SecID, avg_price=AvgPrice, terminal_state=Terminal
     lager:debug("tester: ~s: sell ~p at ~p, profit: ~p", [trade_utils:to_datetimestr(trade_utils:time(Bar)), Lots, Price, (Lots*Price)-(Lots*AvgPrice)]),
     NewInfo = {(Lots*Price)/(Lots*AvgPrice), (Lots*Price)-(Lots*AvgPrice)},
     NewStats = Stats#stats{pl=[NewInfo|Stats#stats.pl]},
-    NewTerminal1 = trade_terminal_state:del_pos_lots(Lots, SecID, Terminal),
+    NewTerminal1 = trade_terminal_state:del_position_lots(Lots, SecID, Terminal),
     NewTerminal2 = trade_terminal_state:add_money(Lots*Price, NewTerminal1),
     State#state{terminal_state=NewTerminal2, stats=NewStats}.
 
