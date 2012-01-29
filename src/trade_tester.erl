@@ -28,14 +28,25 @@ test(TestOptions, Strategy, StrategyOptions) ->
     test_loop(State).
 
 test_loop(State=#state{future=[]}) ->
-    Stats         = State#state.stats,
-    Strategy      = State#state.strategy,
-    TerminalState = State#state.terminal_state,
-    StrategyState = State#state.strategy_state,
-    Strategy:stop(TerminalState, StrategyState),
+    NewState      = handle_signal( {0, State#state.strategy_state}, State ),
+    Strategy      = NewState#state.strategy,
+    Stats         = NewState#state.stats,
+    TerminalState = NewState#state.terminal_state,
+    Strategy:stop(TerminalState, State#state.strategy_state),
     NewStats = Stats#stats{pl = lists:reverse(Stats#stats.pl)},
     print_report(NewStats),
     NewStats;
+
+% test_loop(State=#state{future=[]}) ->
+%     Stats         = State#state.stats,
+%     Strategy      = State#state.strategy,
+%     TerminalState = State#state.terminal_state,
+%     StrategyState = State#state.strategy_state,
+%     Strategy:stop(TerminalState, StrategyState),
+%     NewStats = Stats#stats{pl = lists:reverse(Stats#stats.pl)},
+%     print_report(NewStats),
+%     NewStats;
+
 
 test_loop(State=#state{history=History, future=[Bar|Future]}) ->
     Strategy      = State#state.strategy,
@@ -73,7 +84,7 @@ buy(Lots, State=#state{secid=SecID, avg_price=AvgPrice, terminal_state=Terminal}
 sell(Lots, State=#state{secid=SecID, avg_price=AvgPrice, terminal_state=Terminal, stats=Stats}) ->
     Bar = hd(State#state.history),
     Price = trade_utils:close(Bar),
-    lager:debug("tester: ~s: sell ~p at ~p, profit: ~p", [trade_utils:to_datetimestr(trade_utils:time(Bar)), Lots, Price, (Lots*Price)-(Lots*AvgPrice)]),
+    lager:debug("tester: ~s: sell ~p at ~p, profit: ~p", [trade_utils:to_datetimestr(trade_utils:time(Bar)), Lots, Price, (Lots*Price)/(Lots*AvgPrice)]),
     NewInfo = {(Lots*Price)/(Lots*AvgPrice), (Lots*Price)-(Lots*AvgPrice)},
     NewStats = Stats#stats{pl=[NewInfo|Stats#stats.pl]},
     NewTerminal1 = trade_terminal_state:del_position_lots(Lots, SecID, Terminal),
@@ -81,11 +92,16 @@ sell(Lots, State=#state{secid=SecID, avg_price=AvgPrice, terminal_state=Terminal
     State#state{terminal_state=NewTerminal2, stats=NewStats}.
 
 print_report(#stats{pl=PL}) ->
-    PL2 = element(1, lists:unzip(PL)),
-    lager:info("Geometric mean: ~p~n", [trade_utils:geometric_mean(PL2)]),
-    lager:info("Total bids: ~p~n", [length(PL2)]),
-    lager:info("Win bids: ~p~n", [length(lists:filter(fun(X) -> X > 1 end, PL2))]),
-    lager:info("Percent of wins: ~.2f%~n", [length(lists:filter(fun(X) -> X > 1 end, PL2))/length(PL2)*100])
+    PL1 = element(1, lists:unzip(PL)),
+    PL2 = element(2, lists:unzip(PL)),
+    Bids = length(PL),
+    Wons = length(lists:filter(fun(X) -> X > 1 end, PL1)),
+    WonPercent = percent(Wons, Bids),
+    lager:info("Arithmetic mean: ~p~n", [trade_utils:arithmetic_mean(PL2)]),
+    lager:info("Geometric mean: ~p~n", [trade_utils:geometric_mean(PL1)]),
+    lager:info("Total bids: ~p~n", [Bids]),
+    lager:info("Win bids: ~p~n", [Wons]),
+    lager:info("Percent of wins: ~.2f%~n", [WonPercent])
     .
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -149,4 +165,5 @@ worker() ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-
+percent(_, 0) -> 0.0;
+percent(X, Y) -> X/Y*100.

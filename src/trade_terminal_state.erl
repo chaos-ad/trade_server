@@ -33,12 +33,12 @@ get_money(State=#terminal_state{}) ->
 
 add_money(Delta, State=#terminal_state{}) ->
     Pos = get_money_position(State),
-    lager:debug("Adding ~p money to ~p...", [Delta, get_money(Pos)]),
+%     lager:debug("Adding ~p money to ~p...", [Delta, get_money(Pos)]),
     set_money_position(Pos#money_position{saldo=get_money(Pos) + Delta}, State).
 
 del_money(Delta, State=#terminal_state{}) ->
     Pos = get_money_position(State),
-    lager:debug("Deleting ~p money from ~p...", [Delta, get_money(Pos)]),
+%     lager:debug("Deleting ~p money from ~p...", [Delta, get_money(Pos)]),
     case get_money(Pos) of
         Money when Money <  Delta -> error(no_money);
         Money when Money >= Delta ->
