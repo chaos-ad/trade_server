@@ -8,7 +8,7 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--record(state, {min_period, max_period, ranks, old_signals, cur_signals}).
+-record(state, {min_period, max_period, ranks, signals}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -21,11 +21,10 @@ start(Terminal, Options) ->
     end,
     State =
     #state{
-        min_period  = MinPeriod,
-        max_period  = MaxPeriod,
-        ranks       = [ {X,{1,0}} || X <- lists:seq(MinPeriod, MaxPeriod) ],
-        old_signals = [ {X,   0 } || X <- lists:seq(MinPeriod, MaxPeriod) ],
-        cur_signals = [ {X,   0 } || X <- lists:seq(MinPeriod, MaxPeriod) ]
+        min_period = MinPeriod,
+        max_period = MaxPeriod,
+        ranks      = [ {X,1} || X <- lists:seq(MinPeriod, MaxPeriod) ],
+        signals    = [ {X,0} || X <- lists:seq(MinPeriod, MaxPeriod) ]
     },
 
     History =
@@ -59,43 +58,31 @@ learn(History, [Bar|Future], Terminal, State) ->
 update(History, _Terminal, State=#state{max_period=MaxPeriod}) when length(History) < MaxPeriod ->
     {0, State};
 
-update(History, _Terminal, State=#state{cur_signals=CurSignals, old_signals=OldSignals, ranks=CurRanks}) ->
-    NewRanks   = update_ranks(History, OldSignals, CurSignals, CurRanks),
-    NewSignals = update_signals(History, State#state.min_period, State#state.min_period),
+update(History, _Terminal, State=#state{signals=Signals, ranks=Ranks}) ->
 
-    {CurPeriod, CurRank}   = hd(lists:reverse(lists:keysort(2, CurRanks))),
-    {CurPeriod, CurSignal} = lists:keyfind(CurPeriod, 1, CurSignals),
+    NewRanks   = update_ranks(History, Signals, Ranks),
+    NewSignals = update_signals(History, State#state.min_period, State#state.max_period),
 
-    {NewPeriod, NewRank}   = hd(lists:reverse(lists:keysort(2, NewRanks))),
+%     {CurPeriod, _CurRank}   = hd(lists:reverse(lists:keysort(2, Ranks))),
+%     {CurPeriod, CurSignal} = lists:keyfind(CurPeriod, 1, Signals),
+
+    {NewPeriod, _NewRank}   = hd(lists:reverse(lists:keysort(2, NewRanks))),
     {NewPeriod, NewSignal} = lists:keyfind(NewPeriod, 1, NewSignals),
 
-    Bar  = hd(History),
-    Time = trade_utils:to_datetimestr(trade_utils:time(Bar)),
-    lager:debug("pacha: ~s: period ~p -> ~p; signal: ~p -> ~p; rank ~p -> ~p", [Time, CurPeriod,NewPeriod,CurSignal,NewSignal,CurRank,NewRank]),
+%     Time = trade_utils:to_datetimestr(trade_utils:time(hd(History))),
+%     Args = [Time, CurPeriod,NewPeriod,CurSignal,NewSignal,_CurRank,_NewRank],
+%     lager:debug("pacha: ~s: period ~p -> ~p; signal: ~p -> ~p; rank ~p -> ~p", Args),
 
-%     lager:debug("pacha: Old rank: ~p~n", [OldRank]),
-
-%     case OldRank =/= NewRank of
-%         true  ->
-%             Bar  = hd(History),
-%             Time = trade_utils:to_datetimestr(trade_utils:time(Bar)),
-%             lager:debug("pacha: ~s: Old rank: ~p, New rank: ~p~n", [Time, OldRank, NewRank]);
-%         false ->
-%             ok
-%     end,
-
-    Lots = lots(NewSignal),
-    {Lots, State#state{old_signals=CurSignals, cur_signals=NewSignals, ranks=NewRanks}}.
+    {lots(NewSignal), State#state{signals=NewSignals, ranks=NewRanks}}.
 
 lots(Sig) when Sig  > 0 -> 1;
 lots(Sig) when Sig =< 0 -> 0.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-stop(_, #state{ranks=_Ranks}) ->
-%     lager:debug("pacha: Final ranks: ~p~n", [Ranks]),
-%     lager:info("pacha: Ranks:~n"),
-%     lists:foreach( fun({X,{Y,Z}}) -> lager:info("pacha: ~p: ~p ~p~n", [X,Y,Z]) end, Ranks ),
+stop(_, #state{ranks=Ranks}) ->
+    lager:debug("pacha: final ranks:~n"),
+    lists:foreach( fun({Period, Rank}) -> lager:debug("pacha: ~p: ~p~n", [Period,Rank]) end, lists:keysort(2, Ranks) ),
     ok.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -104,38 +91,34 @@ update_signals(History, MinPeriod, MaxPeriod) ->
     SignalsRaw = lists:foldl
     (
         fun(Period, Signals) ->
-            [{Period, update_signal(History, Period, element(2, hd(Signals)))}|Signals]
+            OldSignal = element(2, hd(Signals)),
+            NewSignal = update_signal(History, Period, OldSignal),
+            [{Period, NewSignal}|Signals]
         end,
         [{0, 0}],
-        lists:seq(MinPeriod, MaxPeriod)
+        lists:seq(2, MaxPeriod)
     ),
-    tl(lists:reverse(SignalsRaw)).
+    lists:reverse(lists:filter(fun({Period,_}) -> Period >= MinPeriod end, SignalsRaw)).
 
 update_signal(History, Period, OldSignal) ->
     MA1 = trade_utils:weighted_average(trade_utils:close(lists:sublist(History, Period-1))),
     MA2 = trade_utils:weighted_average(trade_utils:close(lists:sublist(History, Period))),
     OldSignal + MA1 - MA2.
 
-update_ranks(History, OldSignals, CurSignals, Ranks) ->
+update_ranks(History, Signals, Ranks) ->
     lists:map
     (
-        fun({ {{P,OldSignal},{P,CurSignal}}, {P,OldRank} }) ->
-            {P, update_rank(History, OldSignal, CurSignal, OldRank)}
-        end,
-        lists:zip(lists:zip(OldSignals, CurSignals), Ranks)
+        fun({{P, Signal}, {P, Rank}}) -> {P, update_rank(History, Signal, Rank)} end,
+        lists:zip(Signals, Ranks)
     ).
 
-update_rank([Bar1,Bar2|_], _OldSignal, CurSignal, {Rank, N}) when CurSignal > 0 ->
-    {Rank * (trade_utils:close(Bar1) / trade_utils:close(Bar2)), N+1};
+update_rank([Bar1,Bar2|_], Signal, Rank) when Signal > 0 ->
+    Rank * (trade_utils:close(Bar1) / trade_utils:close(Bar2));
 
-% update_rank([Bar1,Bar2|_], OldSignal, CurSignal, {Rank, N}) when CurSignal =< 0 ->
-%     case OldSignal > 0 of
-%         true  -> {Rank * (trade_utils:close(Bar1) / trade_utils:close(Bar2)), N+1};
-%         false -> {Rank, N}
-%     end;
-
-update_rank(_History, _OldSignal, _NewSignal, Rank) ->
+update_rank(_History, _NewSignal, Rank) ->
     Rank.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
 run() ->
@@ -144,7 +127,7 @@ run() ->
     trade_tester:test
     (
         [
-            {from, {2011, 12, 1}},
+            {from, {2011, 1, 1}},
             {to,   {2012, 1, 1}},
             {symbol, Symbol},
             {period, Period},
@@ -152,8 +135,8 @@ run() ->
         ],
         pacha,
         [
-            {min_period, 80},
-            {max_period, 80},
+            {min_period, 30},
+            {max_period, 100},
             {learn_period, {{2011, 1, 1}, {2011, 1, 1}}},
             {security, Symbol},
             {period, Period}
