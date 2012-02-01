@@ -162,7 +162,14 @@ find_symbol_info(Code) when is_list(Code) ->
 
 find_symbol_info(Code) when is_binary(Code) ->
     Fn = fun({symbol, ID, C, N, M}) -> {ID, C, N, M} end,
-    lists:map(Fn, mnesia:dirty_match_object(#symbol{id='_', code=Code, name='_', market='_'}) ).
+    lists:map(Fn, mnesia:dirty_match_object(#symbol{id='_', code=Code, name='_', market='_'}) );
+
+find_symbol_info({Market, Code}) when is_integer(Market), is_list(Code) ->
+    find_symbol_info({Market, list_to_binary(Code)});
+
+find_symbol_info({Market, Code}) when is_integer(Market), is_binary(Code) ->
+    Fn = fun({symbol, ID, C, N, M}) -> {ID, C, N, M} end,
+    lists:map(Fn, mnesia:dirty_match_object(#symbol{id='_', code=Code, name='_', market=Market}) ).
 
 get_all_symbols_info() ->
     mnesia:dirty_match_object(#symbol{id='_', code='_', name='_', market='_'}).

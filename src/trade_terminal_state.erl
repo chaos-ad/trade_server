@@ -146,10 +146,16 @@ del_trade(SecID, State=#terminal_state{trades=Trades}) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 get_security_id({Market, Security}, #terminal_state{securities=Securities}) ->
-    get_security_id(Market, trade_utils:to_list(Security), Securities);
+    get_security_id(Market, trade_utils:to_binary(Security), Securities);
 
 get_security_id(Security, #terminal_state{securities=Securities}) ->
-    get_security_id(1, Security, Securities).
+    get_security_id(undefined, trade_utils:to_binary(Security), Securities).
+
+get_security_id(undefined, Security, Securities) when is_list(Securities) ->
+    case lists:keytake(Security, 5, Securities) of
+        {value, #security{secid=ID}, _} -> ID;
+        false -> undefined
+    end;
 
 get_security_id(Market, Security, Securities) when is_list(Securities) ->
     case lists:keytake(Security, 5, Securities) of
@@ -257,4 +263,4 @@ make_securities() ->
     lists:map(fun make_security/1, trade_db:get_all_symbols_info()).
 
 make_security({symbol, ID, Code, Name, Market}) ->
-    #security{secid=ID, seccode=trade_utils:to_list(Code), market=Market, shortname=Name, lotsize=1}.
+    #security{secid=ID, seccode=Code, market=Market, shortname=Name, lotsize=1}.
