@@ -100,9 +100,9 @@ average(Data) when is_list(Data) ->
     lists:sum(Data) / length(Data).
 
 weighted_average(Data) when is_list(Data) ->
-    N = length(Data),
-    {X, Y} = lists:foldl(fun({X, Y}, {R, S}) -> {R+X*Y, S+X} end, {0, 0}, lists:zip(lists:seq(1, N), Data)),
-    X / Y.
+    {N,Sum} = lists:foldl(fun(Cur,{N,Sum}) -> {N+1,Sum+Cur*N} end, {1,0}, Data),
+    Prog = (N*(N-1)) / 2,
+    Sum / Prog.
 
 moving_average(Period, Data) ->
     Fun = fun(X, {Tmp, Res}) ->
