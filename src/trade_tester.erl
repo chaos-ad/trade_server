@@ -10,6 +10,29 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+learn(Symbol, Period, From, Strategy, StrategyState, Terminal) ->
+    learn(Symbol, Period, From, undefined, Strategy, StrategyState, Terminal).
+
+learn(Symbol, Period, From, To, Strategy, StrategyState, Terminal) ->
+    State = #state{
+        history        = [],
+        future         = get_history(Symbol, Period, From, To),
+        strategy       = Strategy,
+        strategy_state = StrategyState,
+        terminal_state = Terminal
+    },
+    learn_loop(State).
+
+learn_loop(#state{future=[], strategy_state=SState}) -> SState;
+learn_loop(State=#state{strategy=Strategy, history=History, future=[Bar|Future]}) ->
+    NewHistory    = [Bar|History],
+    TState        = State#state.terminal_state,
+    SState        = State#state.strategy_state,
+    {_, SState1}  = Strategy:update(NewHistory, TState, SState),
+    learn_loop(State#state{history=NewHistory, future=Future, strategy_state=SState1}).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 test(TestOptions, Strategy, StrategyOptions) ->
     From     = proplists:get_value(from, TestOptions),
     To       = proplists:get_value(to,   TestOptions),
@@ -27,34 +50,22 @@ test(TestOptions, Strategy, StrategyOptions) ->
     },
     test_loop(State).
 
-test_loop(State=#state{future=[]}) ->
+test_loop(State=#state{strategy=Strategy, future=[]}) ->
     NewState      = handle_signal( {0, State#state.strategy_state}, State ),
-    Strategy      = NewState#state.strategy,
     Stats         = NewState#state.stats,
-    TerminalState = NewState#state.terminal_state,
-    Strategy:stop(TerminalState, State#state.strategy_state),
+    TState        = State#state.terminal_state,
+    SState        = State#state.strategy_state,
+    Strategy:stop(TState, SState),
     NewStats = Stats#stats{pl = lists:reverse(Stats#stats.pl)},
     print_report(NewStats),
     NewStats;
 
-% test_loop(State=#state{future=[]}) ->
-%     Stats         = State#state.stats,
-%     Strategy      = State#state.strategy,
-%     TerminalState = State#state.terminal_state,
-%     StrategyState = State#state.strategy_state,
-%     Strategy:stop(TerminalState, StrategyState),
-%     NewStats = Stats#stats{pl = lists:reverse(Stats#stats.pl)},
-%     print_report(NewStats),
-%     NewStats;
-
-
-test_loop(State=#state{history=History, future=[Bar|Future]}) ->
-    Strategy      = State#state.strategy,
-    StrategyState = State#state.strategy_state,
-    TerminalState = State#state.terminal_state,
+test_loop(State=#state{strategy=Strategy, history=History, future=[Bar|Future]}) ->
     NewHistory    = [Bar|History],
+    TState        = State#state.terminal_state,
+    SState        = State#state.strategy_state,
     NewState1     = State#state{history=NewHistory, future=Future},
-    NewState2     = handle_signal( Strategy:update(NewHistory, TerminalState, StrategyState), NewState1 ),
+    NewState2     = handle_signal( Strategy:update(NewHistory, TState, SState), NewState1 ),
     test_loop(NewState2).
 
 handle_signal({Signal, NewStrategyState}, State) ->
@@ -111,57 +122,6 @@ get_history(Symbol, Period, From, undefined) ->
 
 get_history(Symbol, Period, From, To) ->
     trade_history:get_history(Symbol, Period, From, To).
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-start_threaded(Options, Threads) ->
-    run_jobs(lists:map(fun make_job/1, Options), Threads).
-
-make_job({Symbol, Period, From, Strategy, Options, TestOptions}) ->
-    fun() -> trade_tester:start(Symbol, Period, From, Strategy, Options, TestOptions) end.
-
-run_jobs(Jobs, Threads) when is_integer(Threads) ->
-    Workers = spawn_workers(Threads),
-    Res = run_jobs(Jobs, Workers),
-    stop_workers(Workers),
-    Res;
-
-run_jobs(Jobs, Workers) when is_list(Workers) ->
-    run_jobs_loop(Jobs, queue:from_list(Workers), [], []).
-
-run_jobs_loop([], _, [], Acc) -> lists:reverse(Acc);
-run_jobs_loop([], Idle, Busy, Acc) -> wait_for_result([], Idle, Busy, Acc);
-
-run_jobs_loop(Jobs, Idle, Busy, Acc) ->
-    case queue:out(Idle) of
-        {empty, _} ->
-            wait_for_result(Jobs, Idle, Busy, Acc);
-        {{value, Pid}, NewIdle} ->
-            Pid ! {job, self(), hd(Jobs)},
-            run_jobs_loop(tl(Jobs), NewIdle, [Pid|Busy], Acc)
-    end.
-
-wait_for_result(Jobs, Idle, Busy, Acc) ->
-    receive
-        {job, Pid, Res} ->
-            run_jobs_loop(Jobs, queue:in(Pid, Idle), lists:delete(Pid, Busy), [Res|Acc])
-    end.
-
-spawn_workers(N) ->
-    [ spawn_link( fun worker/0 ) || _ <- lists:seq(1, N) ].
-
-stop_workers(Workers) ->
-    [ Pid ! stop || Pid <- Workers ].
-
-
-worker() ->
-    receive
-        {job, Pid, Job} ->
-            Pid ! {job, self(), catch Job()},
-            worker();
-        stop ->
-            ok
-    end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
