@@ -7,7 +7,6 @@
 -export([start/2, stop/2, update/3]).
 
 -define(COMISSION, 0.0003).
-% -define(COMISSION, 0.1).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -61,19 +60,19 @@ update(History, _Terminal, State0) ->
     State1 = update_ranks(History, State0),
     State2 = update_signals(History, State1),
 
-    OldPeriod = get_best_period(State0),
+%     OldPeriod = get_best_period(State0),
     NewPeriod = get_best_period(State2),
 
-    OldSignal = get_signal(OldPeriod, State0),
+%     OldSignal = get_signal(OldPeriod, State0),
     NewSignal = get_signal(NewPeriod, State2),
 
-    OldRank = get_rank(OldPeriod, State0),
-    NewRank = get_rank(NewPeriod, State2),
+%     OldRank = get_rank(OldPeriod, State0),
+%     NewRank = get_rank(NewPeriod, State2),
 
     Lots = get_lots(NewSignal, State2),
 
-    Args = [trade_utils:time_str(hd(History)), OldPeriod, NewPeriod, OldSignal, OldRank, NewSignal, NewRank, Lots],
-    lager:debug("ai: ~s: periods: ~p -> ~p; signals: ~p [rank: ~p] -> ~p [rank: ~p]; lots: ~p", Args),
+%     Args = [trade_utils:time_str(hd(History)), OldPeriod, NewPeriod, OldSignal, OldRank, NewSignal, NewRank, Lots],
+%     lager:debug("ai: ~s: periods: ~p -> ~p; signals: ~p [rank: ~p] -> ~p [rank: ~p]; lots: ~p", Args),
 
     {Lots, State2}.
 
@@ -90,7 +89,12 @@ stop(_, _) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 update_ranks(History, State=#state{old_signals=OldSignals, new_signals=NewSignals, ranks=Ranks}) ->
-    NewRanks = lists:map(fun(X) -> update_rank(History, X) end, lists:zip3(OldSignals, NewSignals, Ranks)),
+    NewRanks =
+    lists:map
+    (
+        fun(X) -> update_rank(History, X) end,
+        lists:zip3(OldSignals, NewSignals, Ranks)
+    ),
     State#state{ranks=NewRanks}.
 
 update_rank([Bar1,Bar2|_], {_, NewSignal, Rank}) when NewSignal > 0 ->
@@ -121,15 +125,14 @@ update_signal(Average, LastAverage, BaseMA) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%% TODO: Считать лучший период сразу при пересчёте сигналов
-get_best_period(#state{min_period=Min, new_signals=Signals}) ->
-    get_best_period(Signals, Min, 0, Min).
+get_best_period(#state{min_period=Min, ranks=Ranks}) ->
+    get_best_period(Ranks, 0, Min, Min).
 
 get_best_period([], _, _, Period) -> Period;
-get_best_period([CurSignal|Tail], CurPeriod, MaxSignal, MaxPeriod) ->
-    case CurSignal > MaxSignal of
-        true  -> get_best_period(Tail, CurPeriod+1, CurSignal, CurPeriod);
-        false -> get_best_period(Tail, CurPeriod+1, MaxSignal, MaxPeriod)
+get_best_period([CurRank|Tail], MaxRank, CurPeriod, MaxPeriod) ->
+    case CurRank > MaxRank of
+        true  -> get_best_period(Tail, CurRank, CurPeriod+1, CurPeriod);
+        false -> get_best_period(Tail, MaxRank, CurPeriod+1, MaxPeriod)
     end.
 
 get_signal(Period, #state{min_period=Min, new_signals=Signals}) ->
@@ -155,14 +158,13 @@ averages([Value|Tail], Period, ValSum, TotalSum, PeriodSum, Acc) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% % TODO: тупо проёбываем на SPFB.GOLD
 run() ->
     Symbol = "SBER",
     Period = 15,
     trade_tester:test
     (
         [
-            {from, {2010, 1, 1}},
+            {from, {2009, 1, 1}},
             {to,   {2012, 1, 1}},
             {symbol, Symbol},
             {period, Period},
@@ -172,7 +174,7 @@ run() ->
         [
             {min_period, 5},
             {max_period, 500},
-            {learn_period, {{2009, 1, 1}, {2010, 1, 1}}},
+            {learn_period, {{2008, 1, 1}, {2009, 1, 1}}},
             {security, Symbol},
             {period, Period}
         ]
