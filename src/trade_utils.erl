@@ -7,6 +7,9 @@
 time(TickInfo) when is_list(TickInfo) -> lists:map(fun time/1, TickInfo);
 time(TickInfo) when is_tuple(TickInfo) -> element(1, TickInfo).
 
+time_str(TickInfo) when is_list(TickInfo) -> lists:map(fun time_str/1, TickInfo);
+time_str(TickInfo) when is_tuple(TickInfo) -> to_datetimestr(time(TickInfo)).
+
 open(TickInfo) when is_list(TickInfo) -> lists:map(fun open/1, TickInfo);
 open(TickInfo) when is_tuple(TickInfo) -> element(2, TickInfo).
 
@@ -124,12 +127,24 @@ weighted_moving_average(Period, Data) ->
     {_, Result} = lists:foldl(Fun, {[], []}, Data),
     lists:reverse(Result).
 
+mean(Data) -> arithmetic_mean(Data).
+
 arithmetic_mean([]) -> 0;
 arithmetic_mean(Data) ->
     lists:sum(Data) / length(Data).
 
 geometric_mean([]) -> 0;
 geometric_mean(Data) ->
-    math:pow( lists:foldl(fun(X,Y) -> X * Y end, 1, Data), 1/length(Data) ).
+    math:pow( multiply(Data), 1/length(Data) ).
+
+standard_derivation(Data) ->
+    math:pow(variance(Data), 1/2).
+
+variance(Data) ->
+    Mean = arithmetic_mean(Data),
+    lists:sum(lists:map(fun(X) -> math:pow(X-Mean, 2) end, Data)) / (length(Data)-1).
+
+multiply(Data) ->
+    lists:foldl(fun(X,Y) -> X*Y end, 1, Data).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

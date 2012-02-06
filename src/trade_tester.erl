@@ -3,9 +3,11 @@
 
 -include_lib("trade_periods.hrl").
 
+-define(COMISSION, 0.0003).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--record(stats, {pl=[]}).
+-record(stats, {pl=[], first_bar, last_bar}).
 -record(state, {strategy, strategy_state, terminal_state, stats=#stats{}, history=[], future=[], avg_price, secid}).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -39,14 +41,16 @@ test(TestOptions, Strategy, StrategyOptions) ->
     Symbol   = proplists:get_value(symbol, TestOptions),
     Period   = proplists:get_value(period, TestOptions),
     Terminal = trade_terminal_state:new(TestOptions),
+    History  = get_history(Symbol, Period, From, To),
     State = #state{
         secid          = trade_terminal_state:get_security_id(Symbol, Terminal),
         avg_price      = 0,
         history        = [],
-        future         = get_history(Symbol, Period, From, To),
+        future         = History,
         strategy       = Strategy,
+        terminal_state = Terminal,
         strategy_state = Strategy:start(Terminal, StrategyOptions),
-        terminal_state = Terminal
+        stats          = #stats{first_bar=hd(History), last_bar=lists:nth(length(History), History)}
     },
     test_loop(State).
 
@@ -80,13 +84,14 @@ handle_signal(NewLots, State=#state{secid=SecID, terminal_state=Terminal}) ->
 
 buy(Lots, State=#state{secid=SecID, avg_price=AvgPrice, terminal_state=Terminal}) ->
     Bar = hd(State#state.history),
-    Price = trade_utils:close(Bar),
+    Price = trade_utils:close(Bar) * (1 + ?COMISSION),
     case trade_terminal_state:get_money(Terminal) of
         Money when Money <  Lots * Price -> exit(no_money);
         Money when Money >= Lots * Price ->
             OldLots = trade_terminal_state:get_position_lots(SecID, Terminal),
             NewAvgPrice = (OldLots*AvgPrice + Lots*Price) / (OldLots+Lots),
-            lager:debug("tester: ~s: buy  ~p at ~p, average price: ~p", [trade_utils:to_datetimestr(trade_utils:time(Bar)), Lots, Price, NewAvgPrice]),
+            lager:debug("tester: ~s:  buy: ~p", [trade_utils:time_str(Bar), Price]),
+%             lager:debug("tester: ~s: buy  ~p at ~p, average price: ~p", [trade_utils:to_datetimestr(trade_utils:time(Bar)), Lots, Price, NewAvgPrice]),
             NewTerminal1 = trade_terminal_state:add_position_lots(Lots, SecID, Terminal),
             NewTerminal2 = trade_terminal_state:del_money(Lots*Price, NewTerminal1),
             State#state{avg_price=NewAvgPrice, terminal_state=NewTerminal2}
@@ -94,25 +99,29 @@ buy(Lots, State=#state{secid=SecID, avg_price=AvgPrice, terminal_state=Terminal}
 
 sell(Lots, State=#state{secid=SecID, avg_price=AvgPrice, terminal_state=Terminal, stats=Stats}) ->
     Bar = hd(State#state.history),
-    Price = trade_utils:close(Bar),
-    lager:debug("tester: ~s: sell ~p at ~p, profit: ~p", [trade_utils:to_datetimestr(trade_utils:time(Bar)), Lots, Price, (Lots*Price)/(Lots*AvgPrice)]),
+    Price = trade_utils:close(Bar) * (1 - ?COMISSION),
+    Time = trade_utils:time_str(Bar),
+    lager:debug("tester: ~s: sell: ~p; profit: ~p", [Time, Price, Price/AvgPrice]),
+%     lager:debug("tester: ~s: sell ~p at ~p, profit: ~p", [trade_utils:to_datetimestr(trade_utils:time(Bar)), Lots, Price, Price/AvgPrice]),
     NewInfo = {(Lots*Price)/(Lots*AvgPrice), (Lots*Price)-(Lots*AvgPrice)},
     NewStats = Stats#stats{pl=[NewInfo|Stats#stats.pl]},
     NewTerminal1 = trade_terminal_state:del_position_lots(Lots, SecID, Terminal),
     NewTerminal2 = trade_terminal_state:add_money(Lots*Price, NewTerminal1),
     State#state{terminal_state=NewTerminal2, stats=NewStats}.
 
-print_report(#stats{pl=PL}) ->
-    PL1 = element(1, lists:unzip(PL)),
-    PL2 = element(2, lists:unzip(PL)),
+print_report(#stats{pl=PL, first_bar=First, last_bar=Last}) ->
+    {PLNorm,_} = lists:unzip(PL),
     Bids = length(PL),
-    Wons = length(lists:filter(fun(X) -> X > 1 end, PL1)),
-    WonPercent = percent(Wons, Bids),
-    lager:info("Arithmetic mean: ~p~n", [trade_utils:arithmetic_mean(PL2)]),
-    lager:info("Geometric mean: ~p~n", [trade_utils:geometric_mean(PL1)]),
-    lager:info("Total bids: ~p~n", [Bids]),
+    Wons = length(lists:filter(fun(X) -> X > 1 end, PLNorm)),
     lager:info("Win bids: ~p~n", [Wons]),
-    lager:info("Percent of wins: ~.2f%~n", [WonPercent])
+    lager:info("Total bids: ~p~n", [Bids]),
+    lager:info("Percent of wins: ~.2f%~n", [percent(Wons, Bids)]),
+    lager:info("Geometric mean: ~p~n", [trade_utils:geometric_mean(PLNorm)]),
+    lager:info("Arithmetic mean: ~p~n", [trade_utils:arithmetic_mean(PLNorm)]),
+    lager:info("Variance: ~p~n", [trade_utils:variance(PLNorm)]),
+    lager:info("Standard derivation: ~p~n", [trade_utils:standard_derivation(PLNorm)]),
+    lager:info("Total wealth relative: ~p~n", [trade_utils:multiply(PLNorm)]),
+    lager:info("Buy&Hold wealth relative: ~p~n", [trade_utils:close(Last)/trade_utils:open(First)])
     .
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
