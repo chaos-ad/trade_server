@@ -35,7 +35,6 @@ to_unixtime({Year, Month, Day}) ->
 to_unixtime({{Year, Month, Day}, {Hour, Min, Sec}}) ->
     calendar:datetime_to_gregorian_seconds({{Year, Month, Day}, {Hour, Min, Sec}}) - 62167219200.
 
-
 to_datetime(Timestamp) when is_integer(Timestamp) ->
     calendar:gregorian_seconds_to_datetime(Timestamp + 62167219200);
 
@@ -45,24 +44,20 @@ to_datetime({Year, Month, Day}) ->
 to_datetime({{Year, Month, Day}, {Hour, Min, Sec}}) ->
     {{Year, Month, Day}, {Hour, Min, Sec}}.
 
-
 to_datetimestr({{Year, Month, Day}, {Hour, Min, Sec}}) ->
     lists:flatten(io_lib:format("~4.10.0B-~2.10.0B-~2.10.0B ~2.10.0B:~2.10.0B:~2.10.0B", [Year, Month, Day, Hour, Min, Sec]));
 
 to_datetimestr(Value) ->
     to_datetimestr(to_datetime(Value)).
 
-
 to_date(Value) ->
     element(1, to_datetime(Value)).
-
 
 to_datestr({Year, Month, Day}) ->
     lists:flatten(io_lib:format("~4.10.0B-~2.10.0B-~2.10.0B", [Year, Month, Day]));
 
 to_datestr(Value) ->
     to_datestr(to_date(Value)).
-
 
 local_time() ->
     to_unixtime(calendar:local_time()).

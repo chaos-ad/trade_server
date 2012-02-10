@@ -90,8 +90,7 @@ buy(Lots, State=#state{secid=SecID, avg_price=AvgPrice, terminal_state=Terminal}
         Money when Money >= Lots * Price ->
             OldLots = trade_terminal_state:get_position_lots(SecID, Terminal),
             NewAvgPrice = (OldLots*AvgPrice + Lots*Price) / (OldLots+Lots),
-            lager:debug("tester: ~s:  buy: ~p", [trade_utils:time_str(Bar), Price]),
-%             lager:debug("tester: ~s: buy  ~p at ~p, average price: ~p", [trade_utils:to_datetimestr(trade_utils:time(Bar)), Lots, Price, NewAvgPrice]),
+            lager:debug("tester: ~s:  buy ~p lots: ~.4f", [trade_utils:time_str(Bar), Lots, Lots*Price]),
             NewTerminal1 = trade_terminal_state:add_position_lots(Lots, SecID, Terminal),
             NewTerminal2 = trade_terminal_state:del_money(Lots*Price, NewTerminal1),
             State#state{avg_price=NewAvgPrice, terminal_state=NewTerminal2}
@@ -100,27 +99,28 @@ buy(Lots, State=#state{secid=SecID, avg_price=AvgPrice, terminal_state=Terminal}
 sell(Lots, State=#state{secid=SecID, avg_price=AvgPrice, terminal_state=Terminal, stats=Stats}) ->
     Bar = hd(State#state.history),
     Price = trade_utils:close(Bar) * (1 - ?COMISSION),
-    Time = trade_utils:time_str(Bar),
-    lager:debug("tester: ~s: sell: ~p; profit: ~p", [Time, Price, Price/AvgPrice]),
-%     lager:debug("tester: ~s: sell ~p at ~p, profit: ~p", [trade_utils:to_datetimestr(trade_utils:time(Bar)), Lots, Price, Price/AvgPrice]),
-    NewInfo = {(Lots*Price)/(Lots*AvgPrice), (Lots*Price)-(Lots*AvgPrice)},
-    NewStats = Stats#stats{pl=[NewInfo|Stats#stats.pl]},
+    RelProfit = (Lots*Price)/(Lots*AvgPrice),
+    AbsProfit = (Lots*Price)-(Lots*AvgPrice),
+    NewStats = Stats#stats{pl=[RelProfit|Stats#stats.pl]},
     NewTerminal1 = trade_terminal_state:del_position_lots(Lots, SecID, Terminal),
     NewTerminal2 = trade_terminal_state:add_money(Lots*Price, NewTerminal1),
+    NewMoney = trade_terminal_state:get_money(NewTerminal2),
+
+    Args = [trade_utils:time_str(Bar), Lots, (Lots*Price), AbsProfit, (RelProfit-1)/100, NewMoney],
+    lager:debug("tester: ~s: sell ~p lots: ~.4f (profit: ~.4f (~.4f%), new equity: ~.4f)", Args),
     State#state{terminal_state=NewTerminal2, stats=NewStats}.
 
 print_report(#stats{pl=PL, first_bar=First, last_bar=Last}) ->
-    {PLNorm,_} = lists:unzip(PL),
     Bids = length(PL),
-    Wons = length(lists:filter(fun(X) -> X > 1 end, PLNorm)),
+    Wons = length(lists:filter(fun(X) -> X > 1 end, PL)),
     lager:info("Win bids: ~p~n", [Wons]),
     lager:info("Total bids: ~p~n", [Bids]),
     lager:info("Percent of wins: ~.2f%~n", [percent(Wons, Bids)]),
-    lager:info("Geometric mean: ~p~n", [trade_utils:geometric_mean(PLNorm)]),
-    lager:info("Arithmetic mean: ~p~n", [trade_utils:arithmetic_mean(PLNorm)]),
-    lager:info("Variance: ~p~n", [trade_utils:variance(PLNorm)]),
-    lager:info("Standard derivation: ~p~n", [trade_utils:standard_derivation(PLNorm)]),
-    lager:info("Total wealth relative: ~p~n", [trade_utils:multiply(PLNorm)]),
+    lager:info("Geometric mean: ~p~n", [trade_utils:geometric_mean(PL)]),
+    lager:info("Arithmetic mean: ~p~n", [trade_utils:arithmetic_mean(PL)]),
+    lager:info("Variance: ~p~n", [trade_utils:variance(PL)]),
+    lager:info("Standard derivation: ~p~n", [trade_utils:standard_derivation(PL)]),
+    lager:info("Total wealth relative: ~p~n", [trade_utils:multiply(PL)]),
     lager:info("Buy&Hold wealth relative: ~p~n", [trade_utils:close(Last)/trade_utils:open(First)])
     .
 
@@ -136,3 +136,6 @@ get_history(Symbol, Period, From, To) ->
 
 percent(_, 0) -> 0.0;
 percent(X, Y) -> X/Y*100.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
