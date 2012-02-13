@@ -66,10 +66,10 @@ start(Terminal, Options) ->
 update(History, _Terminal, State=#state{max_period=MaxPeriod}) when length(History) < MaxPeriod ->
     {0, State};
 
-update(History, _Terminal, State0) ->
+update(History, Terminal, State0) ->
     State1 = update_ranks(History, State0),
     State2 = update_signals(History, State1),
-    State3 = update_lots(State2),
+    State3 = update_lots(History, Terminal, State2),
     {get_lots(State3), State3}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -90,12 +90,10 @@ update_ranks(History, State=#state{old_signals=OldSignals, new_signals=NewSignal
 
 update_rank([Bar1,Bar2|_], {_, NewSignal, Rank}) when NewSignal > 0 ->
     Delta = (trade_utils:close(Bar1) / trade_utils:close(Bar2)),
-    lager:debug("ai: ~s: updating delta ~p -> ~p", [trade_utils:to_datetimestr(trade_utils:time(Bar1)), Rank, Rank*Delta]),
     {Rank * Delta, Delta};
 
 update_rank([_Bar1|_], {OldSignal, _, Rank}) when OldSignal > 0 ->
     Delta = ((1-?COMISSION) / (1+?COMISSION)),
-    lager:debug("ai: ~s: updating delta ~p -> ~p", [trade_utils:to_datetimestr(trade_utils:time(_Bar1)), Rank, Rank*Delta]),
     {Rank * Delta, Delta};
 
 update_rank(_, {_, _, Rank}) ->
@@ -106,12 +104,7 @@ update_rank(_, {_, _, Rank}) ->
 forget_rank_history(Time, State=#state{ranks=Ranks, rank_history=History}) ->
     case queue:out(History) of
         {{value, {ForgetAt, Deltas}}, NewHistory} when ForgetAt =< Time ->
-            NewRanks = lists:map(
-                fun({X,Y}) ->
-                    lager:debug("ai: ~s: reverting delta ~p -> ~p", [trade_utils:to_datetimestr(Time), X, X/Y]),
-                    X/Y
-                end,
-                lists:zip(Ranks, Deltas)),
+            NewRanks = lists:map(fun({X,Y}) -> X/Y end, lists:zip(Ranks, Deltas)),
             NewState = State#state{ranks=NewRanks, rank_history=NewHistory},
             NewState;
         _ ->
@@ -149,13 +142,18 @@ update_signal(Average, LastAverage, BaseMA) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-update_lots(State=#state{}) ->
+update_lots(History, Terminal, State=#state{}) ->
     NewPeriod = get_best_period(State),
     NewSignal = get_signal(NewPeriod, State),
-    State#state{lots=update_lots(NewSignal, State)}.
+    Price = trade_utils:close(hd(History)),
+    Money = trade_terminal_state:get_money(Terminal),
+    State#state{lots=update_lots(NewSignal, Price, Money, State)}.
 
-update_lots(Sig, _) when Sig  > 0 -> 1;
-update_lots(Sig, _) when Sig =< 0 -> 0.
+update_lots(Sig, _Price, _Money, _) when Sig > 0 ->
+    1;
+
+update_lots(Sig, _, _, _) when Sig =< 0 ->
+    0.
 
 get_lots(#state{lots=Lots}) -> Lots.
 
@@ -204,7 +202,7 @@ run(Symbol, Period) ->
     trade_tester:test
     (
         [
-            {from, {2012, 1, 1}},
+            {from, {2011, 1, 1}},
             {to,   {2012, 2, 1}},
             {symbol, Symbol},
             {period, Period},
@@ -214,8 +212,8 @@ run(Symbol, Period) ->
         [
             {rank_range, {1, year}},
             {min_period, 10},
-            {max_period, 10},
-%             {learn_period, {{2010, 1, 1}, {2011, 1, 1}}},
+            {max_period, 500},
+            {learn_period, {{2010, 1, 1}, {2011, 1, 1}}},
             {security, Symbol},
             {period, Period}
         ]
