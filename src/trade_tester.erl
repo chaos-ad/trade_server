@@ -48,6 +48,7 @@ test(TestOptions, Strategy, StrategyOptions) ->
     Symbol   = proplists:get_value(symbol, TestOptions),
     Period   = proplists:get_value(period, TestOptions),
     Terminal = trade_terminal_state:new(TestOptions),
+    Money    = trade_terminal_state:get_money(Terminal),
     History  = get_history(Symbol, Period, From, To),
     State = #state{
         secid          = trade_terminal_state:get_security_id(Symbol, Terminal),
@@ -56,7 +57,7 @@ test(TestOptions, Strategy, StrategyOptions) ->
         strategy       = Strategy,
         terminal_state = Terminal,
         strategy_state = Strategy:start(Terminal, StrategyOptions),
-        stats          = trade_stats:new()
+        stats          = trade_stats:set_money(Money, trade_stats:new())
     },
     test_loop(State).
 
@@ -91,19 +92,23 @@ buy(Lots, State=#state{secid=SecID, terminal_state=Terminal}) ->
     case trade_terminal_state:get_money(Terminal) of
         Money when Money <  Lots * Price -> exit(no_money);
         Money when Money >= Lots * Price ->
-            NewStats = trade_stats:buy(Bar, SecID, Lots, Price, State#state.stats),
             NewTerminal1 = trade_terminal_state:add_position_lots(Lots, SecID, Terminal),
             NewTerminal2 = trade_terminal_state:del_money(Lots*Price, NewTerminal1),
-            State#state{terminal_state=NewTerminal2, stats=NewStats}
+            NewMoney  = trade_terminal_state:get_money(NewTerminal2),
+            NewStats1 = trade_stats:buy(Bar, SecID, Lots, Price, State#state.stats),
+            NewStats2 = trade_stats:set_money(NewMoney, NewStats1),
+            State#state{terminal_state=NewTerminal2, stats=NewStats2}
     end.
 
 sell(Lots, State=#state{secid=SecID, terminal_state=Terminal}) ->
     Bar = hd(State#state.history),
     Price = trade_utils:close(Bar) * (1 - ?COMISSION),
-    NewStats = trade_stats:sell(Bar, SecID, Lots, Price, State#state.stats),
     NewTerminal1 = trade_terminal_state:del_position_lots(Lots, SecID, Terminal),
     NewTerminal2 = trade_terminal_state:add_money(Lots*Price, NewTerminal1),
-    State#state{terminal_state=NewTerminal2, stats=NewStats}.
+    NewMoney  = trade_terminal_state:get_money(NewTerminal2),
+    NewStats1 = trade_stats:sell(Bar, SecID, Lots, Price, State#state.stats),
+    NewStats2 = trade_stats:set_money(NewMoney, NewStats1),
+    State#state{terminal_state=NewTerminal2, stats=NewStats2}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
