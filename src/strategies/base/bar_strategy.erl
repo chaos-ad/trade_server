@@ -1,5 +1,5 @@
 -module(bar_strategy).
--behaviour(trade_strategy).
+% -behaviour(trade_strategy).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

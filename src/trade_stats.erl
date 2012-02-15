@@ -2,9 +2,11 @@
 -compile(export_all).
 
 -record(stats, {
+    mode,
     bids=[],
     profits=[],
     positions=[],
+    history=[],
     bar_last,
     bar_first,
     money_last,
@@ -13,6 +15,9 @@
 
 new() -> #stats{}.
 
+new(silent) -> #stats{mode=silent};
+new(verbose) -> #stats{mode=verbose}.
+
 set_money(Money, Stats=#stats{money_first=undefined, money_last=undefined}) when Money =/= undefined ->
     Stats#stats{money_first=Money, money_last=Money};
 
@@ -20,13 +25,13 @@ set_money(Money, Stats=#stats{}) when Money =/= undefined ->
     Stats#stats{money_last=Money}.
 
 add_bar(Bar, Stats=#stats{bar_first=undefined, bar_last=undefined}) when Bar =/= undefined ->
-    Stats#stats{bar_first=Bar, bar_last=Bar};
+    Stats#stats{bar_first=Bar, bar_last=Bar, history=[Bar]};
 
-add_bar(Bar, Stats=#stats{}) when Bar =/= undefined ->
-    Stats#stats{bar_last=Bar}.
+add_bar(Bar, Stats=#stats{history=History}) when Bar =/= undefined ->
+    Stats#stats{bar_last=Bar, history=[Bar|History]}.
 
-buy(Bar, Security, Lots, Price, Stats=#stats{bids=Bids, positions=Positions}) ->
-    log_bid({buy, {trade_utils:time(Bar), Lots, Price}}),
+buy(Bar, Security, Lots, Price, Stats=#stats{bids=Bids, positions=Positions, mode=Mode}) ->
+    log_bid(Mode, {buy, {trade_utils:time(Bar), Lots, Price}}),
     NewBids = [{buy, {trade_utils:time(Bar), Lots, Price}}|Bids],
     case lists:keyfind(Security, 1, Positions) of
         false ->
@@ -41,10 +46,10 @@ buy(Bar, Security, Lots, Price, Stats=#stats{bids=Bids, positions=Positions}) ->
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-sell(Bar, Security, Lots, Price, Stats=#stats{bids=Bids, positions=Positions, profits=Profits}) ->
+sell(Bar, Security, Lots, Price, Stats=#stats{bids=Bids, positions=Positions, profits=Profits, mode=Mode}) ->
     case lists:keyfind(Security, 1, Positions) of
         {Security, OldLots, AvgPrice} when OldLots >= Lots ->
-            log_bid({sell, {trade_utils:time(Bar), Lots, AvgPrice, Price}}),
+            log_bid(Mode, {sell, {trade_utils:time(Bar), Lots, AvgPrice, Price}}),
             RelProfit = (Lots*Price)/(Lots*AvgPrice),
             AbsProfit = (Lots*Price)-(Lots*AvgPrice),
             NewPositions =
@@ -60,12 +65,21 @@ sell(Bar, Security, Lots, Price, Stats=#stats{bids=Bids, positions=Positions, pr
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-get_report(Stats=#stats{bids=Bids, profits=Profits, positions=Positions}) ->
+get_report(Stats=#stats{}) ->
     Stats#stats{
-        bids=lists:reverse(Bids),
-        profits=lists:reverse(Profits),
-        positions=lists:reverse(Positions)
+        bids      = lists:reverse(Stats#stats.bids),
+        profits   = lists:reverse(Stats#stats.profits),
+        positions = lists:reverse(Stats#stats.positions),
+        history   = lists:reverse(Stats#stats.history)
     }.
+
+get_bids(#stats{bids=Bids}) ->
+    Bids.
+
+get_history(#stats{history=History}) ->
+    History.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 print_report(Stats=#stats{profits=Profits}) ->
     {RelPL, _AbsPL} = lists:unzip(Profits),
@@ -100,7 +114,21 @@ print_report(Stats=#stats{profits=Profits}) ->
 print_bids(#stats{bids=Bids}) ->
     lists:foreach(fun log_bid/1, Bids).
 
+
+save_stats(File, #stats{bids=Bids}) ->
+    {ok, FD} = file:open(File, [write]),
+    lists:foreach
+    (
+        fun({buy, {Time,Lots,  Price}}) -> io:format(FD, "~s;~p;~p~n", [trade_utils:to_datetimestr(Time),  Lots, Price]);
+           ({sell,{Time,Lots,_,Price}}) -> io:format(FD, "~s;~p;~p~n", [trade_utils:to_datetimestr(Time), -Lots, Price])
+        end,
+        Bids
+    ).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+log_bid(silent, _) -> ok;
+log_bid(_, Data) -> log_bid(Data).
 
 log_bid({buy, {_Time, _Lots, _Price}}) ->
     Args = [trade_utils:to_datetimestr(_Time), _Lots, (_Lots*_Price)],
@@ -119,12 +147,3 @@ percent(X, Y) -> X/Y*100.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-save_stats(File, #stats{bids=Bids}) ->
-    {ok, FD} = file:open(File, [write]),
-    lists:foreach
-    (
-        fun({buy, {Time,Lots,  Price}}) -> io:format(FD, "~s;~p;~p~n", [trade_utils:to_datetimestr(Time),  Lots, Price]);
-           ({sell,{Time,Lots,_,Price}}) -> io:format(FD, "~s;~p;~p~n", [trade_utils:to_datetimestr(Time), -Lots, Price])
-        end,
-        Bids
-    ).

@@ -14,7 +14,8 @@
     stats,
     history=[],
     future=[],
-    secid
+    secid,
+    mode
 }).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -47,26 +48,31 @@ test(TestOptions, Strategy, StrategyOptions) ->
     To       = proplists:get_value(to,   TestOptions),
     Symbol   = proplists:get_value(symbol, TestOptions),
     Period   = proplists:get_value(period, TestOptions),
+    Mode     = proplists:get_value(mode, TestOptions, silent),
     Terminal = trade_terminal_state:new(TestOptions),
     Money    = trade_terminal_state:get_money(Terminal),
     History  = get_history(Symbol, Period, From, To),
     State = #state{
+        mode           = Mode,
         secid          = trade_terminal_state:get_security_id(Symbol, Terminal),
         history        = [],
         future         = History,
         strategy       = Strategy,
         terminal_state = Terminal,
         strategy_state = Strategy:start(Terminal, StrategyOptions),
-        stats          = trade_stats:set_money(Money, trade_stats:new())
+        stats          = trade_stats:set_money(Money, trade_stats:new(Mode))
     },
     test_loop(State).
 
-test_loop(State=#state{strategy=Strategy, future=[]}) ->
+test_loop(State=#state{strategy=Strategy, future=[], mode=Mode}) ->
     Signal = {0, State#state.strategy_state},
     NewState = handle_signal(Signal, State),
     Strategy:stop(State#state.terminal_state, State#state.strategy_state),
     Report = trade_stats:get_report(NewState#state.stats),
-    trade_stats:print_report(Report),
+    case Mode of
+        verbose -> trade_stats:print_report(Report);
+        _       -> ok
+    end,
     Report;
 
 test_loop(State=#state{strategy=Strategy, history=History, future=[Bar|Future]}) ->
