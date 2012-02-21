@@ -202,6 +202,7 @@ run(Symbol, Period) ->
     trade_tester:test
     (
         [
+            {mode, verbose},
             {from, {2011, 1, 1}},
             {to,   {2012, 2, 1}},
             {symbol, Symbol},
