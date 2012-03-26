@@ -18,7 +18,8 @@
     min_period,
     max_period,
     old_signals,
-    new_signals
+    new_signals,
+    sig_threshold
 }).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -33,13 +34,14 @@ start(Terminal, Options) ->
     end,
 
     State = #state{
-        lots        = 0,
-        min_period  = MinPeriod,
-        max_period  = MaxPeriod,
-        rank_range  = proplists:get_value(rank_range, Options),
-        ranks       = lists:duplicate(MaxPeriod-MinPeriod+1, 1),
-        old_signals = lists:duplicate(MaxPeriod-MinPeriod+1, 0),
-        new_signals = lists:duplicate(MaxPeriod-MinPeriod+1, 0)
+        lots          = 0,
+        min_period    = MinPeriod,
+        max_period    = MaxPeriod,
+        rank_range    = proplists:get_value(rank_range, Options),
+        ranks         = lists:duplicate(MaxPeriod-MinPeriod+1, 1),
+        old_signals   = lists:duplicate(MaxPeriod-MinPeriod+1, 0),
+        new_signals   = lists:duplicate(MaxPeriod-MinPeriod+1, 0),
+        sig_threshold = proplists:get_value(sig_threshold, Options, 0)
     },
 
     Learn = proplists:get_value(learn_period, Options),
@@ -128,17 +130,17 @@ time_shift(Time, {N,  years}) -> trade_utils:add_days(Time, N*365).
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 update_signals(History, State=#state{min_period=Min, max_period=Max}) ->
+    Price = trade_utils:close(hd(History)),
     Averages = averages(trade_utils:close(lists:sublist(History, Max))),
-    BaseMA = element(2, lists:keyfind(5,1,Averages)),
-    NewSignals = signals(lists:sublist(Averages, Min, Max), BaseMA),
+    NewSignals = signals(lists:sublist(Averages, Min, Max), Price),
     State#state{old_signals=State#state.new_signals, new_signals=NewSignals}.
 
-signals(Averages, BaseMA) ->
-    Fun = fun({_,Avg},Acc) -> [update_signal(Avg, hd(Acc), BaseMA)|Acc] end,
-    tl(lists:reverse( lists:foldl(Fun, [0], Averages) )).
+signals(Averages, Price) ->
+    Fun = fun({_,Avg},Acc) -> [update_signal(Avg, Price)|Acc] end,
+    lists:reverse( lists:foldl(Fun, [], Averages) ).
 
-update_signal(Average, LastAverage, BaseMA) ->
-    LastAverage + BaseMA - Average.
+update_signal(Average, Price) ->
+    1 - (Average / Price).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -149,10 +151,10 @@ update_lots(History, Terminal, State=#state{}) ->
     Money = trade_terminal_state:get_money(Terminal),
     State#state{lots=update_lots(NewSignal, Price, Money, State)}.
 
-update_lots(Sig, _Price, _Money, _) when Sig > 0 ->
+update_lots(Sig, _Price, _Money, #state{sig_threshold=Threshold}) when Sig > Threshold ->
     1;
 
-update_lots(Sig, _, _, _) when Sig =< 0 ->
+update_lots(Sig, _, _, #state{sig_threshold=Threshold}) when Sig =< Threshold ->
     0.
 
 get_lots(#state{lots=Lots}) -> Lots.
@@ -212,6 +214,7 @@ run(Symbol, Period) ->
         ?MODULE,
         [
             {rank_range, {1, year}},
+            {sig_threshold, 0.05},
             {min_period, 10},
             {max_period, 500},
             {learn_period, {{2010, 1, 1}, {2011, 1, 1}}},
