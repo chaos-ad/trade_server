@@ -9,7 +9,8 @@
                   stdlib,
                   inets,
                   gproc,
-                  lager
+                  lager,
+                  trade_admin
                  ]},
   {mod, { trade_server_app, []}},
   {env, []}

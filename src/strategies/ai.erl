@@ -211,7 +211,7 @@ run(Symbol, Period) ->
             {period, Period},
             {money, 100000}
         ],
-        ?MODULE,
+        ai,
         [
             {rank_range, {1, year}},
             {sig_threshold, 0.05},
