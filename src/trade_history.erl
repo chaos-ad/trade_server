@@ -13,6 +13,9 @@ start_link() ->
 get_history(Symbol, Period, From) ->
     get_history(Symbol, Period, From, last_closed_bar(Period)).
 
+get_history(Symbol, Period, From, undefined) ->
+    get_history(Symbol, Period, From);
+
 get_history(Symbol, Period, From, To) ->
     {T1, T2} = get_range(Period, From, To),
     gen_server:call(?SERVER, {get_history, Symbol, Period, T1, T2}, infinity).

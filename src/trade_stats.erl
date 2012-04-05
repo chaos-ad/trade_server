@@ -103,9 +103,9 @@ print_report(Stats=#stats{profits=Profits}) ->
 %     lager:info("Arithmetic mean normalized:     ~p~n", [trade_utils:arithmetic_mean(RelPL)]),
 %     lager:info("Standard derivation (rub):      ~p~n", [trade_utils:standard_derivation(AbsPL)]),
 %     lager:info("Standard derivation normalized: ~p~n", [trade_utils:standard_derivation(RelPL)]),
-    lager:info("Real profit (rub):              ~.2f~n", [(MoneyLast-MoneyFirst)]),
-    lager:info("Real profit (%):                ~.2f%~n", [(MoneyLast/MoneyFirst-1)*100]),
-    lager:info("Buy&Hold profit (%):            ~.2f%~n", [(PriceFirst/PriceLast-1)*100]),
+    lager:info("Real profit (rub):              ~.2f~n", [float(MoneyLast-MoneyFirst)]),
+    lager:info("Real profit (%):                ~.2f%~n", [float(MoneyLast/MoneyFirst-1)*100]),
+    lager:info("Buy&Hold profit (%):            ~.2f%~n", [float(PriceFirst/PriceLast-1)*100]),
 %     lager:info("Geometric profit:               ~.2f%~n", [(trade_utils:multiply(RelPL)-1)*100]),
     lager:info("=====================================")
     .
