@@ -34,6 +34,9 @@ find_symbol(Arg) ->
 get_all_symbols() ->
     gen_server:call(?SERVER, get_all_symbols).
 
+get_all_symbols(Market) when is_integer(Market) ->
+    gen_server:call(?SERVER, {get_all_symbols, Market}).
+
 get_symbols_count() ->
     gen_server:call(?SERVER, get_symbols_count).
 
@@ -104,6 +107,9 @@ handle_call({find_symbol, Arg}, _, State) ->
 handle_call(get_all_symbols, _, State) ->
     {reply, get_all_symbols_info(), State};
 
+handle_call({get_all_symbols, Market}, _, State) ->
+    {reply, get_all_symbols_info(Market), State};
+
 handle_call(get_symbols_count, _, State) ->
     {reply, get_symbol_info_count(), State};
 
@@ -173,6 +179,9 @@ find_symbol_info({Market, Code}) when is_integer(Market), is_binary(Code) ->
 
 get_all_symbols_info() ->
     mnesia:dirty_match_object(#symbol{id='_', code='_', name='_', market='_'}).
+
+get_all_symbols_info(Market) ->
+    mnesia:dirty_match_object(#symbol{id='_', code='_', name='_', market=Market}).
 
 get_symbol_info_count() ->
     mnesia:table_info(symbol, size).
