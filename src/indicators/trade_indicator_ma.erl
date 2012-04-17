@@ -1,9 +1,9 @@
 -module(trade_indicator_ma).
 -compile(export_all).
 
-get_data(History, Options) ->
+get_data(History, Args) ->
 
-    {[Period], _} = trade_admin_utils:get_args([{"ma_period", integer, {default, 30}}], Options),
+    Period = trade_arg_utils:get_default(Args, "ma_period", integer, 30),
 
     Times = trade_utils:time(History),
     Close = trade_utils:close(History),

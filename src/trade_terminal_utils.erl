@@ -176,9 +176,9 @@ make_record({security, Attributes, Args}) ->
     #security{  secid           = get_value(number, secid, Attributes),
                 active          = get_value(atom, active, Attributes),
                 sectype         = get_value(sectype, Args),
-                seccode         = get_value(seccode, Args),
+                seccode         = get_value(binary, seccode, Args),
                 market          = get_value(number, market, Args),
-                shortname       = get_value(shortname, Args),
+                shortname       = get_value(binary, shortname, Args),
                 decimals        = get_value(decimals, Args),
                 minstep         = get_value(number, minstep, Args),
                 lotsize         = get_value(number, lotsize, Args),
@@ -224,6 +224,12 @@ get_value(number, Name, Values) ->
     case get_value(Name, Values) of
         undefined -> undefined;
         Result    -> list_to_number(Result)
+    end;
+
+get_value(binary, Name, Values) ->
+    case get_value(Name, Values) of
+        undefined -> undefined;
+        Result    -> unicode:characters_to_binary(Result)
     end.
 
 list_to_number([C, $e | Value]) when C >= $0 andalso C =< $9 ->

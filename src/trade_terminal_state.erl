@@ -260,7 +260,7 @@ false2undef(Other) -> Other.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 make_securities() ->
-    lists:map(fun make_security/1, trade_db:get_all_symbols_info()).
+    lists:map(fun make_security/1, trade_db:get_all_symbols()).
 
 make_security({symbol, ID, Code, Name, Market}) ->
     #security{secid=ID, seccode=Code, market=Market, shortname=Name, lotsize=1}.
